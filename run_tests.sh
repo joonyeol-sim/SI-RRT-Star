@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Environments
-environments=("RectEnv" "CircleEnv" "FreeEnv")
+environments=("RectEnv" "CircleEnv" "Free")
 
 # Obstacles
 obstacles=(10 20)
 obstacles_free=(0 10 20)
 
 # Radius
-radius=(10 15 20 25 30 40 60 80 100)
+radius=(120 140 160 180 200)
 
 # Time steps
 timesteps=($(seq 0 49))
@@ -35,15 +35,15 @@ run_test() {
 }
 
 # Loop through all combinations of parameters and run tests
-for env in "${environments[@]}"; do
-  if [ "$env" == "FreeEnv" ]; then
-    current_obstacles=("${obstacles_free[@]}")
-  else
-    current_obstacles=("${obstacles[@]}")
-  fi
+for rad in "${radius[@]}"; do
+  for env in "${environments[@]}"; do
+    if [ "$env" == "Free" ]; then
+      current_obstacles=("${obstacles_free[@]}")
+    else
+      current_obstacles=("${obstacles[@]}")
+    fi
 
-  for obs in "${current_obstacles[@]}"; do
-    for rad in "${radius[@]}"; do
+    for obs in "${current_obstacles[@]}"; do
       for time in "${timesteps[@]}"; do
         run_test "$env" "$obs" "$rad" "$time"
       done
