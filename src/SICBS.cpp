@@ -63,7 +63,8 @@ Solution SICBS::run() {
 
       // update path
       // cout << "Planning for agent " << agent_ids[i] << endl;
-      new_node.solution[agent_ids[i]] = low_level_planners[agent_ids[i]].run();
+      Controls control_inputs;
+      tie(new_node.solution[agent_ids[i]], control_inputs) = low_level_planners[agent_ids[i]].run();
       if (new_node.solution[agent_ids[i]].empty()) continue;
       // constraint_table.updateSoftConstraint(i, new_node.solution[agent_ids[i]]);
 
@@ -92,7 +93,7 @@ Solution SICBS::getInitialSolution() {
   std::vector<std::thread> threads(env.num_of_robots);
 
   auto plan_path = [&](int agent_id) {
-    auto path = low_level_planners[agent_id].run();
+    auto [path, control_inputs] = low_level_planners[agent_id].run();
     // std::cout << "Agent " << agent_id << " found a path" << std::endl;
     solution[agent_id] = path;
   };

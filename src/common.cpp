@@ -47,6 +47,32 @@ void saveSolution(const Solution& solution, const string& filename) {
   }
 }
 
+void saveActionSolution(const ActionSolution &action_solution, const string &filename) {
+  ofstream file;
+  openFile(file, filename);
+  if (!file.is_open()) return;
+
+  for (size_t i = 0; i < action_solution.size(); ++i) {
+    file << "Agent " << i << ":";
+    for (const auto& control : action_solution[i]) {
+      auto [acceleration, acc_time, dec_time] = control;
+      auto [acc_x, acc_y] = acceleration;
+      auto [t1_x, t1_y] = acc_time;
+      auto [t2_x, t2_y] = dec_time;
+
+      file << "(" << acc_x << "," << acc_y << ","
+           << t1_x << "," << t1_y << ","
+           << t2_x << "," << t2_y << ")->";
+    }
+    file << endl;
+  }
+  file.close();
+
+  if (!fs::exists(filename)) {
+    cerr << "Failed to write file: " << filename << endl;
+  }
+}
+
 void saveData(double cost, double makespan, double duration, const string& filename) {
   ofstream file;
   openFile(file, filename);

@@ -24,13 +24,15 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  string benchmarkPath = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
+  string benchmark_path = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
                          robotnum + "_" + testnum + ".yaml";
-  string solutionPath = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
+  string solution_path = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
                         robotnum + "_" + testnum + "_solution.txt";
-  string dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum +
+  string action_solution_path = "control/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
+                        robotnum + "_" + testnum + "_controls.txt";
+  string data_path = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum +
                     "_" + testnum + "_data.txt";
-  YAML::Node config = YAML::LoadFile(benchmarkPath);
+  YAML::Node config = YAML::LoadFile(benchmark_path);
 
   vector<shared_ptr<Obstacle>> obstacles;
   for (size_t i = 0; i < config["obstacles"].size(); ++i) {
@@ -75,6 +77,8 @@ int main(int argc, char* argv[]) {
   SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances, max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
   Solution soluiton;
+  ActionSolution action_solution;
+
   auto start = std::chrono::high_resolution_clock::now();
   double sum_of_costs = 0.0;
   double makespan = 0.0;
@@ -89,12 +93,14 @@ int main(int argc, char* argv[]) {
     // SI-CPP
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
       SIRRT sirrt(agent_id, env, constraint_table);
-      auto path = sirrt.run();
-      // cout << "Agent " << agent_id << " found a solution" << endl;
+      auto [path, control_inputs] = sirrt.run();
+      cout << "Agent " << agent_id << " found a solution" << endl;
       soluiton.emplace_back(path);
+      action_solution.emplace_back(control_inputs);
       sum_of_costs += get<1>(path.back());
       makespan = max(makespan, get<1>(path.back()));
       constraint_table.path_table[agent_id] = path;
+      constraint_table.control_inputs_table[agent_id] = control_inputs;
     }
   }
 
@@ -108,8 +114,9 @@ int main(int argc, char* argv[]) {
   cout << "sum of cost: " << sum_of_costs << endl;
   cout << "makespan: " << makespan << endl;
   cout << "computation time: " << duration.count() << endl;
-  saveSolution(soluiton, solutionPath);
-  saveData(sum_of_costs, makespan, duration.count(), dataPath);
+  saveSolution(soluiton, solution_path);
+  saveActionSolution(action_solution, action_solution_path);
+  saveData(sum_of_costs, makespan, duration.count(), data_path);
 
   return 0;
 }

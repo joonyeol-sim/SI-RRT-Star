@@ -16,6 +16,7 @@ class SIRRT {
   Point start_point;
   Point goal_point;
   Path path;
+  Controls control_inputs;
   int agent_id;
   SharedEnv& env;
   ConstraintTable& constraint_table;
@@ -31,12 +32,13 @@ class SIRRT {
         start_point(env.start_points[agent_id]),
         goal_point(env.goal_points[agent_id]) {}
   ~SIRRT() = default;
-  Path run();
+  tuple<Path, Controls> run();
   Point generateRandomPoint();
   shared_ptr<LLNode> getNearestNode(const Point& point) const;
+  Control getControlInput(const Point& from_point, const Point& to_point) const;
   Point steer(const shared_ptr<LLNode>& from_node, const Point& random_point,
               SafeIntervalTable& safe_interval_table) const;
-  Path updatePath(const shared_ptr<LLNode>& goal_node) const;
+  tuple<Path, Controls> updatePathAndControl(const shared_ptr<LLNode>& goal_node) const;
   void getNeighbors(Point point, vector<shared_ptr<LLNode>>& neighbors) const;
   vector<shared_ptr<LLNode>> chooseParent(const Point& new_point, const vector<shared_ptr<LLNode>>& neighbors,
                                   SafeIntervalTable& safe_interval_table) const;

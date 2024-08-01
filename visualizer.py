@@ -1,11 +1,14 @@
 import argparse
 import re
 
+import matplotlib
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from matplotlib.animation import FuncAnimation
+
+matplotlib.use('TkAgg')
 
 # Argument parser
 parser = argparse.ArgumentParser()
@@ -24,6 +27,7 @@ interval = 0.1
 
 benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
 solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
+controlPath = f"control/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_controls.txt"
 
 # Load the YAML file
 with open(benchmarkPath, 'r') as f:
@@ -33,6 +37,10 @@ with open(benchmarkPath, 'r') as f:
 with open(solutionPath, 'r') as f:
     solution = f.read()
 
+# Load the control file
+with open(controlPath, 'r') as f:
+    control = f.read()
+
 # Parse paths for each agent
 paths = []
 for path_str in solution.split('Agent')[1:]:
@@ -41,6 +49,15 @@ for path_str in solution.split('Agent')[1:]:
         x, y, t = map(float, point_str.strip('()').split(','))
         path.append((x, y, t))
     paths.append(path)
+
+# Parse control for each agent
+controls = []
+for control_str in control.split('Agent')[1:]:
+    agent_controls = []
+    for control_point in re.findall(r'\(.*?\)', control_str):
+        acc_x, acc_y, t1_x, t1_y, t2_x, t2_y = map(float, control_point.strip('()').split(','))
+        agent_controls.append((acc_x, acc_y, t1_x, t1_y, t2_x, t2_y))
+    controls.append(agent_controls)
 
 # Parse obstacles
 obstacles = data.get('obstacles', [])
@@ -93,15 +110,40 @@ def init():
     return agents + agent_labels + [time_text]
 
 
+def calculate_state(initial_state, acc_time, acceleration, elapsed_time):
+    x0, y0 = initial_state
+    t1x, t1y = acc_time
+    ax, ay = acceleration
+
+    def calc_coord(t, p0, t1, acc):
+        if t <= t1:
+            return p0 + 0.5 * acc * t * t
+        else:
+            x1 = p0 + 0.5 * acc * t1 * t1
+            v1 = acc * t1
+            dt = t - t1
+            return x1 + v1 * dt - 0.5 * acc * dt * dt
+
+    x = calc_coord(elapsed_time, x0, t1x, ax)
+    y = calc_coord(elapsed_time, y0, t1y, ay)
+
+    return (x, y)
+
 def update_agents_positions(current_time):
-    for i, path in enumerate(paths):
+    for i, (path, agent_controls) in enumerate(zip(paths, controls)):
         for j in range(len(path) - 1):
             if path[j][2] <= current_time < path[j + 1][2]:
-                start = np.array(path[j][:2])
-                end = np.array(path[j + 1][:2])
-                ratio = (current_time - path[j][2]) / (path[j + 1][2] - path[j][2])
-                current_x = start[0] + ratio * (end[0] - start[0])
-                current_y = start[1] + ratio * (end[1] - start[1])
+                start = path[j][:2]
+                control = agent_controls[j + 1]
+                acc_x, acc_y, t1_x, t1_y, t2_x, t2_y = control
+
+                if all(v == 0 for v in control):
+                    # If all control values are zero, keep the agent at its current position
+                    current_x, current_y = start
+                else:
+                    elapsed_time = current_time - path[j][2]
+                    current_x, current_y = calculate_state(start, (t1_x, t1_y), (acc_x, acc_y), elapsed_time)
+
                 agents[i].center = (current_x, current_y)
                 agent_labels[i].set_text(str(i))
                 agent_labels[i].set_position((current_x, current_y))

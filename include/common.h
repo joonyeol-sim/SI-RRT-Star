@@ -20,11 +20,18 @@
 using namespace std;
 
 using Point = std::tuple<double, double>;
+using Velocity = std::tuple<double, double>;
+using Acceleration = std::tuple<double, double>;
+using AccTime = std::tuple<double, double>;
+using DecTime = std::tuple<double, double>;
+using Control = std::tuple<Acceleration, AccTime, DecTime>;
+using Controls = std::vector<Control>;
 using Path = std::vector<std::tuple<Point, double>>;
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
 using Constraint = std::tuple<double, Path>;
 using Solution = std::vector<Path>;
+using ActionSolution = std::vector<Controls>;
 
 void openFile(ofstream &file, const string &filename);
 
@@ -33,6 +40,8 @@ void writePath(ofstream &file, const Path &path);
 void savePath(const Path &path, const string &filename);
 
 void saveSolution(const Solution &solution, const string &filename);
+
+void saveActionSolution(const ActionSolution &action_solution, const string &filename);
 
 void saveData(double cost, double makespan, double duration, const string &filename);
 
