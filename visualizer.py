@@ -6,7 +6,9 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
-from matplotlib.animation import FuncAnimation
+import matplotlib.animation as animation
+from tqdm import tqdm
+
 
 matplotlib.use('TkAgg')
 
@@ -179,6 +181,24 @@ def update(frame):
 # Calculate the speed multiplier to keep the animation speed consistent
 animation_interval = interval * 10
 
-ani = FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
+ani = animation.FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
+
+# Set up the writer
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
+
+progress_bar = tqdm(total=num_frames, unit='frames')
+
+def progress_callback(current_frame, total_frames):
+    progress_bar.n = current_frame
+    progress_bar.refresh()
+
+# Save the animation
+output_file = f"mapf_dynamics.mp4"
+ani.save(output_file, writer=writer, progress_callback=progress_callback)
+
+progress_bar.close()
+
+print(f"Animation saved as {output_file}")
 
 plt.show()
