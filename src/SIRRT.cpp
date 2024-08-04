@@ -16,15 +16,15 @@ tuple<Path, Controls> SIRRT::run() {
   assert(!safe_interval_table.table[goal_point].empty());
 
   // initialize start node
-  Control start_control = make_tuple(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
+  Control start_control = Control(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
   auto start_node =
       make_shared<LLNode>(start_point, start_control, 0.0, safe_interval_table.table[start_point].front().second);
   start_node->earliest_arrival_time = 0.0;
   nodes.push_back(start_node);
 
   // initialize goal node
-  Control goal_control = make_tuple(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
-  auto goal_node = make_shared<LLNode>(goal_point, goal_control, safe_interval_table.table[goal_point].back().first,
+  Control goal_control = Control(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
+  goal_node = make_shared<LLNode>(goal_point, goal_control, safe_interval_table.table[goal_point].back().first,
                                        numeric_limits<double>::infinity());
   goal_node->earliest_arrival_time = numeric_limits<double>::infinity();
 
@@ -150,12 +150,12 @@ tuple<Path, Controls> SIRRT::updatePathAndControl(const shared_ptr<LLNode>& goal
     control_inputs.emplace_back(curr_control);
     if (parent_time + expand_time + env.epsilon < curr_time) {
       path.emplace_back(parent_node->point, curr_time - expand_time);
-      control_inputs.emplace_back(make_tuple(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0)));
+      control_inputs.emplace_back(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
     }
     curr_node = curr_node->parent;
   }
   path.emplace_back(curr_node->point, 0);
-  control_inputs.emplace_back(make_tuple(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0)));
+  control_inputs.emplace_back(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
   reverse(path.begin(), path.end());
   reverse(control_inputs.begin(), control_inputs.end());
 
@@ -219,7 +219,7 @@ Control SIRRT::getControlInput(const Point& from_point, const Point& to_point) c
   AccTime acc_time = std::make_tuple(t, t);
   DecTime dec_time = std::make_tuple(t, t);
 
-  Control control = std::make_tuple(a, acc_time, dec_time);
+  Control control = Control(a, acc_time, dec_time);
 
   // Verification (similar to Python assertions)
   Point q_1 = std::make_tuple(from_x + 0.5 * std::get<0>(a) * t * t, from_y + 0.5 * std::get<1>(a) * t * t);
@@ -241,7 +241,7 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point& new_point, const vec
   auto new_nodes = vector<shared_ptr<LLNode>>();
 
   for (auto& safe_interval : safe_interval_table.table[new_point]) {
-    auto control = make_tuple(make_tuple(-1.0, -1.0), make_tuple(-1.0, -1.0), make_tuple(-1.0, -1.0));
+    auto control = Control(make_tuple(-1.0, -1.0), make_tuple(-1.0, -1.0), make_tuple(-1.0, -1.0));
     auto new_node = make_shared<LLNode>(new_point, control, safe_interval.first, safe_interval.second);
     if (new_node->interval.first >= best_arrival_time) continue;
     for (const auto& neighbor : neighbors) {

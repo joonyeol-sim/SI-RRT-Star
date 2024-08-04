@@ -24,7 +24,16 @@ using Velocity = std::tuple<double, double>;
 using Acceleration = std::tuple<double, double>;
 using AccTime = std::tuple<double, double>;
 using DecTime = std::tuple<double, double>;
-using Control = std::tuple<Acceleration, AccTime, DecTime>;
+
+struct Control {
+    Acceleration acceleration;
+    AccTime acc_time;
+    DecTime dec_time;
+
+    Control(Acceleration acceleration, AccTime acc_time, DecTime dec_time)
+            : acceleration(std::move(acceleration)), acc_time(std::move(acc_time)), dec_time(std::move(dec_time)) {}
+};
+
 using Controls = std::vector<Control>;
 using Path = std::vector<std::tuple<Point, double>>;
 using Interval = std::pair<double, double>;
@@ -46,6 +55,13 @@ void saveActionSolution(const ActionSolution &action_solution, const string &fil
 void saveData(double cost, double makespan, double duration, const string &filename);
 
 double calculateDistance(Point point1, Point point2);
+
+struct State {
+  Point point;
+  Velocity velocity;
+
+  State(Point point, Velocity velocity) : point(std::move(point)), velocity(std::move(velocity)) {}
+};
 
 struct PointHash {
   size_t operator()(const Point &point) const {
