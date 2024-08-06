@@ -46,7 +46,7 @@ tuple<Path, Controls> SIRRT::run() {
     if (new_nodes.empty()) {
       continue;
     }
-    // rewire(new_nodes, neighbors);
+    rewire(new_nodes, neighbors);
 
     // check goal
     for (auto& new_node : new_nodes) {
@@ -282,32 +282,43 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point& new_point, const vec
   return new_nodes;
 }
 
-// void SIRRT::rewire(const vector<shared_ptr<LLNode>>& new_nodes, const vector<shared_ptr<LLNode>>& neighbors) {
-//   assert(!neighbors.empty());
-//   for (auto& new_node : new_nodes) {
-//     for (auto& neighbor : neighbors) {
-//       if (neighbor->interval.first >= best_arrival_time) continue;
-//       if (new_node->earliest_arrival_time >= neighbor->earliest_arrival_time) continue;
-//       const double expand_time = calculateDistance(neighbor->point, new_node->point) / env.max_velocities[agent_id];
-//       const double lower_bound = new_node->earliest_arrival_time + expand_time;
-//       const double upper_bound = new_node->interval.second + expand_time;
-//
-//       if (lower_bound >= best_arrival_time) continue;
-//       if (lower_bound >= neighbor->interval.second) continue;
-//       if (upper_bound <= neighbor->interval.first) continue;
-//
-//       const double earliest_arrival_time = constraint_table.getEarliestArrivalTime(
-//           agent_id, new_node->point, neighbor->point, expand_time, max(neighbor->interval.first, lower_bound),
-//           min(neighbor->interval.second, upper_bound), env.radii[agent_id]);
-//       if (earliest_arrival_time < 0.0) continue;
-//
-//       if (earliest_arrival_time < neighbor->earliest_arrival_time) {
-//         neighbor->earliest_arrival_time = earliest_arrival_time;
-//         neighbor->parent = new_node;
-//       }
-//     }
-//   }
-// }
+void SIRRT::rewire(const vector<shared_ptr<LLNode>>& new_nodes, const vector<shared_ptr<LLNode>>& neighbors) {
+  assert(!neighbors.empty());
+  for (auto& new_node : new_nodes) {
+    for (auto& neighbor : neighbors) {
+      if (neighbor->interval.first >= best_arrival_time) continue;
+      if (new_node->earliest_arrival_time >= neighbor->earliest_arrival_time) continue;
+
+      // calculate t1 and t2
+      auto control = getControlInput(new_node->point, neighbor->point);
+      const auto& [acceleration, acc_time, dec_time] = control;
+      const double expand_time =
+          std::max(std::get<0>(acc_time) + std::get<0>(dec_time), std::get<1>(acc_time) + std::get<1>(dec_time));
+
+      const double lower_bound = new_node->earliest_arrival_time + expand_time;
+      const double upper_bound = new_node->interval.second + expand_time;
+
+      if (lower_bound >= best_arrival_time) continue;
+      if (lower_bound >= neighbor->interval.second) continue;
+      if (upper_bound <= neighbor->interval.first) continue;
+
+      // calculate Trajectory
+      Path trajectory = {};
+      constraint_table.generateTrajectory(new_node->point, neighbor->point, control, trajectory);
+
+      const double earliest_arrival_time = constraint_table.getEarliestArrivalTime(
+          agent_id, trajectory, expand_time, max(neighbor->interval.first, lower_bound),
+          min(neighbor->interval.second, upper_bound), env.radii[agent_id]);
+      if (earliest_arrival_time < 0.0) continue;
+
+      if (earliest_arrival_time < neighbor->earliest_arrival_time) {
+        neighbor->control = control;
+        neighbor->earliest_arrival_time = earliest_arrival_time;
+        neighbor->parent = new_node;
+      }
+    }
+  }
+}
 
 void SIRRT::release() {
   nodes.clear();

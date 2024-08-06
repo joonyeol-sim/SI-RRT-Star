@@ -65,7 +65,13 @@ int main(int argc, char* argv[]) {
   vector<double> thresholds;
   vector<int> iterations;
   vector<double> goal_sample_rates;
+
+  // std::random_device rd;
+  // std::mt19937 gen(rd());
+  // std::uniform_real_distribution<> dis(0.3, 0.7);  // 0.3에서 0.7 사이의 균일 분포
+
   for (int i = 0; i < num_of_agents; ++i) {
+    // radii.emplace_back(dis(gen));
     radii.emplace_back(0.5);
     max_expand_distances.emplace_back(5.0);
     max_velocities.emplace_back(0.5);
