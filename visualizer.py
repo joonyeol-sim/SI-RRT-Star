@@ -23,7 +23,7 @@ testnum = args.testnum
 interval = 0.1
 
 benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
-solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
+solutionPath = f"over_solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
 
 # Load the YAML file
 with open(benchmarkPath, 'r') as f:

@@ -20,7 +20,7 @@ def parse_data(data):
 
 mapname = "CircleEnv"
 obs = "20"
-robotnum = "30"
+robotnum = "160"
 
 sum_of_cost_list = []
 sum_of_distance_list = []
@@ -31,8 +31,8 @@ for testnum in range(0, 50):
     # print("Test " + str(testnum) + ":")
     testnum = str(testnum)
     benchmarkPath = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum + "_" + testnum + ".yaml";
-    solutionPath = "cbs_solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum + "_" + testnum + "_solution.txt";
-    dataPath = "cbs_data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum + "_" + testnum + "_data.txt";
+    solutionPath = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum + "_" + testnum + "_solution.txt";
+    dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum + "_" + testnum + "_data.txt";
 
     # open file from dataPath
     try:
