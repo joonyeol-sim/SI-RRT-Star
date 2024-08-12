@@ -49,6 +49,26 @@ obstacles = data.get('obstacles', [])
 start_points = data.get('startPoints', [])
 goal_points = data.get('goalPoints', [])
 
+# Verify start and goal points
+all_points_match = True
+for i, (path, start, goal) in enumerate(zip(paths, start_points, goal_points)):
+    start_x, start_y = start
+    goal_x, goal_y = goal
+    path_start_x, path_start_y, _ = path[0]
+    path_end_x, path_end_y, _ = path[-1]
+
+    if not (np.isclose(start_x, path_start_x) and np.isclose(start_y, path_start_y)):
+        print(
+            f"Warning: Agent {i} start point mismatch. YAML: ({start_x}, {start_y}), Path: ({path_start_x}, {path_start_y})")
+        all_points_match = False
+
+    if not (np.isclose(goal_x, path_end_x) and np.isclose(goal_y, path_end_y)):
+        print(f"Warning: Agent {i} goal point mismatch. YAML: ({goal_x}, {goal_y}), Path: ({path_end_x}, {path_end_y})")
+        all_points_match = False
+
+if all_points_match:
+    print("Excellent! All start and goal points match perfectly.")
+
 # Calculate number of animation frames
 max_time = max(point[2] for path in paths for point in path)
 num_frames = int(max_time / interval) + 1
