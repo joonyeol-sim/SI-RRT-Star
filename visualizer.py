@@ -5,7 +5,11 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
-from matplotlib.animation import FuncAnimation
+import matplotlib
+import matplotlib.animation as animation
+from tqdm import tqdm
+
+matplotlib.use('TkAgg')
 
 # Argument parser
 parser = argparse.ArgumentParser()
@@ -88,9 +92,9 @@ for agent in agents:
 for i, (start, goal) in enumerate(zip(start_points, goal_points)):
     start_x, start_y = start
     goal_x, goal_y = goal
-    ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
+    # ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
     ax.plot(goal_x, goal_y, marker='*', markersize=10, color='red')
-    ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
+    # ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
     ax.text(goal_x, goal_y, f'G{i}', fontsize=8, color='black', ha='right', va='bottom')
 
 # Add obstacles to the plot
@@ -161,6 +165,24 @@ def update(frame):
 # Calculate the speed multiplier to keep the animation speed consistent
 animation_interval = interval * 10
 
-ani = FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
+ani = animation.FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
+
+# Set up the writer
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
+
+progress_bar = tqdm(total=num_frames, unit='frames')
+
+def progress_callback(current_frame, total_frames):
+    progress_bar.n = current_frame
+    progress_bar.refresh()
+
+# Save the animation
+output_file = f"mapf_dynamics.mp4"
+ani.save(output_file, writer=writer, progress_callback=progress_callback)
+
+progress_bar.close()
+
+print(f"Animation saved as {output_file}")
 
 plt.show()
