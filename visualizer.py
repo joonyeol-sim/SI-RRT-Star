@@ -45,6 +45,10 @@ for path_str in solution.split('Agent')[1:]:
 # Parse obstacles
 obstacles = data.get('obstacles', [])
 
+# Get start and goal points from YAML file
+start_points = data.get('startPoints', [])
+goal_points = data.get('goalPoints', [])
+
 # Calculate number of animation frames
 max_time = max(point[2] for path in paths for point in path)
 num_frames = int(max_time / interval) + 1
@@ -61,9 +65,9 @@ for agent in agents:
     ax.add_patch(agent)
 
 # Mark start and goal points with agent ID
-for i, path in enumerate(paths):
-    start_x, start_y, _ = path[0]
-    goal_x, goal_y, _ = path[-1]
+for i, (start, goal) in enumerate(zip(start_points, goal_points)):
+    start_x, start_y = start
+    goal_x, goal_y = goal
     ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
     ax.plot(goal_x, goal_y, marker='*', markersize=10, color='red')
     ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
@@ -76,7 +80,7 @@ for obs in obstacles:
         ax.add_patch(circle)
     elif 'width' in obs and 'height' in obs:
         rect = patches.Rectangle((obs['center'][0] - obs['width'] / 2, obs['center'][1] - obs['height'] / 2),
-            obs['width'], obs['height'], color='gray', fill=True)
+                                 obs['width'], obs['height'], color='gray', fill=True)
         ax.add_patch(rect)
 
 
