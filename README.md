@@ -20,7 +20,7 @@ sudo apt-get install g++ cmake libyaml-cpp-dev python3-matplotlib
 ### Benchmark File Structure
 - The benchmark files are located in the `benchmarks` folder.
     - The `benchmarks` folder contains three subfolders: `CircleEnv_10`, `CircleEnv_20`, `Free_0`, `RectEnv_10`, and `RectEnv_20`.
-    - Each subfolder contains the number of agents as a subfolder (e.g., `10`, `15`, `20`, `25`, `30`, `40`, `60`, `80`, `100`).
+    - Each subfolder contains the number of agents as a subfolder (e.g., `10`, `15`, `20`, `25`, `30`, `40`, `60`, `80`, `100`, `120`, `140`, `160`, `180`, `200`).
     - Each agent subfolder contains 50 test instances.
 - The solution folder and data folder have the same structure as the benchmark folder.
   - **To extract the solution and data, you must create a solution folder with the same structure as the benchmark.**
