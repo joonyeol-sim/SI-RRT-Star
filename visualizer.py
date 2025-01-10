@@ -1,22 +1,24 @@
 import argparse
 import re
 
+import matplotlib.animation as animation
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
-import matplotlib
-import matplotlib.animation as animation
-from tqdm import tqdm
-
-matplotlib.use('TkAgg')
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mapname", "-m", type=str, required=True, help="Name of the map")
-parser.add_argument("--obs", "-o", type=str, required=True, help="Obstacle configuration")
-parser.add_argument("--robotnum", "-r", type=str, required=True, help="Number of robots")
+parser.add_argument(
+    "--obs", "-o", type=str, required=True, help="Obstacle configuration"
+)
+parser.add_argument(
+    "--robotnum", "-r", type=str, required=True, help="Number of robots"
+)
 parser.add_argument("--testnum", "-t", type=str, required=True, help="Test number")
-parser.add_argument("--interval", "-i", type=float, default=0.1, help="Time interval for updates")
+parser.add_argument(
+    "--interval", "-i", type=float, default=0.1, help="Time interval for updates"
+)
 args = parser.parse_args()
 
 mapname = args.mapname
@@ -28,33 +30,45 @@ interval = 0.1
 benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
 solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
 
-with open(benchmarkPath, 'r') as f:
+with open(benchmarkPath, "r") as f:
     data = yaml.load(f, Loader=yaml.FullLoader)
 
-with open(solutionPath, 'r') as f:
+with open(solutionPath, "r") as f:
     solution = f.read()
 
 paths = []
-for path_str in solution.split('Agent')[1:]:
+for path_str in solution.split("Agent")[1:]:
     path = []
-    for point_str in re.findall(r'\(.*?\)', path_str):
-        x, y, t = map(float, point_str.strip('()').split(','))
+    for point_str in re.findall(r"\(.*?\)", path_str):
+        x, y, t = map(float, point_str.strip("()").split(","))
         path.append((x, y, t))
     paths.append(path)
 
-obstacles = data.get('obstacles', [])
+obstacles = data.get("obstacles", [])
 
-start_points = data.get('startPoints', [])
-goal_points = data.get('goalPoints', [])
+start_points = data.get("startPoints", [])
+goal_points = data.get("goalPoints", [])
 
 max_time = max(point[2] for path in paths for point in path)
 num_frames = int(max_time / interval) + 1
 
 fig, ax = plt.subplots(figsize=(8, 8))
 radius = 0.5
-agents = [patches.Circle((0, 0), radius, color='blue', fill=True) for _ in range(len(paths))]
-agent_labels = [ax.text(0, 0, '', fontsize=8, color='white', ha='center', va='center') for _ in range(len(paths))]
-time_text = ax.text(0.005, 0.995, '', transform=ax.transAxes, horizontalalignment='left', verticalalignment='top')
+agents = [
+    patches.Circle((0, 0), radius, color="blue", fill=True) for _ in range(len(paths))
+]
+agent_labels = [
+    ax.text(0, 0, "", fontsize=8, color="white", ha="center", va="center")
+    for _ in range(len(paths))
+]
+time_text = ax.text(
+    0.005,
+    0.995,
+    "",
+    transform=ax.transAxes,
+    horizontalalignment="left",
+    verticalalignment="top",
+)
 
 for agent in agents:
     ax.add_patch(agent)
@@ -63,30 +77,35 @@ for i, (start, goal) in enumerate(zip(start_points, goal_points)):
     start_x, start_y = start
     goal_x, goal_y = goal
     # ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
-    ax.plot(goal_x, goal_y, marker='*', markersize=10, color='red')
+    ax.plot(goal_x, goal_y, marker="*", markersize=10, color="red")
     # ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
-    ax.text(goal_x, goal_y, f'G{i}', fontsize=8, color='black', ha='right', va='bottom')
+    ax.text(goal_x, goal_y, f"G{i}", fontsize=8, color="black", ha="right", va="bottom")
 
 for obs in obstacles:
-    if 'radius' in obs:
-        circle = patches.Circle(obs['center'], obs['radius'], color='gray', fill=True)
+    if "radius" in obs:
+        circle = patches.Circle(obs["center"], obs["radius"], color="gray", fill=True)
         ax.add_patch(circle)
-    elif 'width' in obs and 'height' in obs:
-        rect = patches.Rectangle((obs['center'][0] - obs['width'] / 2, obs['center'][1] - obs['height'] / 2),
-                                 obs['width'], obs['height'], color='gray', fill=True)
+    elif "width" in obs and "height" in obs:
+        rect = patches.Rectangle(
+            (obs["center"][0] - obs["width"] / 2, obs["center"][1] - obs["height"] / 2),
+            obs["width"],
+            obs["height"],
+            color="gray",
+            fill=True,
+        )
         ax.add_patch(rect)
 
 
 def init():
     ax.set_xlim(0, 40)
     ax.set_ylim(0, 40)
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
     for agent in agents:
         agent.center = (0, 0)
-        agent.set_color('blue')
+        agent.set_color("blue")
     for label in agent_labels:
-        label.set_text('')
-    time_text.set_text('')
+        label.set_text("")
+    time_text.set_text("")
     return agents + agent_labels + [time_text]
 
 
@@ -114,24 +133,36 @@ def detect_collisions(current_time):
     for i, agent1 in enumerate(agents):
         for j, agent2 in enumerate(agents):
             if i != j:
-                distance = np.linalg.norm(np.array(agent1.center) - np.array(agent2.center))
+                distance = np.linalg.norm(
+                    np.array(agent1.center) - np.array(agent2.center)
+                )
                 if distance < 2 * (radius * 0.9):
-                    agents[i].set_color('red')
-                    agents[j].set_color('red')
-                    print(f"Collision detected between agent {i} and agent {j} at time {current_time:.2f}")
+                    agents[i].set_color("red")
+                    agents[j].set_color("red")
+                    print(
+                        f"Collision detected between agent {i} and agent {j} at time {current_time:.2f}"
+                    )
 
 
 def update(frame):
     current_time = frame * interval
-    time_text.set_text(f'Time: {current_time:.2f}')
+    time_text.set_text(f"Time: {current_time:.2f}")
 
     update_agents_positions(current_time)
     detect_collisions(current_time)
 
     return agents + agent_labels + [time_text]
 
+
 animation_interval = interval * 10
 
-ani = animation.FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
+ani = animation.FuncAnimation(
+    fig,
+    update,
+    frames=num_frames,
+    init_func=init,
+    blit=True,
+    interval=animation_interval,
+)
 
 plt.show()
