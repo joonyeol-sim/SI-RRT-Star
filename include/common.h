@@ -12,14 +12,50 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <thread>
 
 using namespace std;
 
-using Point = std::tuple<double, double>;
+class Velocity {
+public:
+  double x, y;
+
+  explicit Velocity(const double vx = 0.0, const double vy = 0.0) : x(vx), y(vy) {}
+
+  bool operator==(const Velocity &other) const { return x == other.x && y == other.y; }
+
+  bool operator!=(const Velocity &other) const { return !(*this == other); }
+
+  Velocity operator+(const Velocity &other) const { return Velocity(x + other.x, y + other.y); }
+
+  Velocity operator-(const Velocity &other) const { return Velocity(x - other.x, y - other.y); }
+
+  double dot(const Velocity &other) const { return x * other.x + y * other.y; }
+
+  double length() const { return std::sqrt(x * x + y * y); }
+};
+
+class Point {
+public:
+  double x, y;
+
+  explicit Point(const double x = 0.0, const double y = 0.0) : x(x), y(y) {}
+
+  bool operator==(const Point &other) const { return x == other.x && y == other.y; }
+
+  bool operator!=(const Point &other) const { return !(*this == other); }
+
+  Point operator+(const Point &other) const { return Point(x + other.x, y + other.y); }
+
+  Point operator-(const Point &other) const { return Point(x - other.x, y - other.y); }
+
+  double dot(const Point &other) const { return x * other.x + y * other.y; }
+  double dot(const Velocity &other) const { return x * other.x + y * other.y; }
+};
+
 using Path = std::vector<std::tuple<Point, double>>;
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
@@ -49,10 +85,10 @@ struct PointHash {
 };
 
 class Obstacle {
- public:
+public:
   Point point;
 
-  Obstacle(double x, double y) : point(make_tuple(x, y)) {}
+  Obstacle(double x, double y) : point(Point(x, y)) {}
 
   virtual ~Obstacle() = default;
 
@@ -60,7 +96,7 @@ class Obstacle {
 };
 
 class RectangularObstacle : public Obstacle {
- public:
+public:
   double width, height;
 
   RectangularObstacle(double x, double y, double width, double height) : Obstacle(x, y), width(width), height(height) {}
@@ -90,7 +126,7 @@ class RectangularObstacle : public Obstacle {
 };
 
 class CircularObstacle : public Obstacle {
- public:
+public:
   double radius;
 
   CircularObstacle(double x, double y, double radius) : Obstacle(x, y), radius(radius) {}
@@ -100,4 +136,4 @@ class CircularObstacle : public Obstacle {
   }
 };
 
-#endif  // COMMON_H
+#endif // COMMON_H

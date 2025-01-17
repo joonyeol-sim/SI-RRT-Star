@@ -5,9 +5,9 @@
 #include "common.h"
 
 class SafeIntervalTable {
- public:
+public:
   unordered_map<Point, vector<Interval>, PointHash> table;
-  SharedEnv& env;
-  explicit SafeIntervalTable(SharedEnv& env) : env(env) {}
+  SharedEnv &env;
+  explicit SafeIntervalTable(SharedEnv &env) : env(env) {}
 };
-#endif  // SAFEINTERVALTABLE_H
+#endif // SAFEINTERVALTABLE_H

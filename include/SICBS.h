@@ -14,7 +14,7 @@ struct compare_function {
   //   }
   //   return a.cost > b.cost;
   // }
-  bool operator()(const HLNode& a, const HLNode& b) const {
+  bool operator()(const HLNode &a, const HLNode &b) const {
     if (a.conflicts.size() == b.conflicts.size()) {
       return a.cost > b.cost;
     }
@@ -23,16 +23,16 @@ struct compare_function {
 };
 
 class SICBS {
- public:
+public:
   boost::heap::fibonacci_heap<HLNode, boost::heap::compare<compare_function>> open_list;
   vector<shared_ptr<HLNode>> nodes;
-  SharedEnv& env;
-  ConstraintTable& constraint_table;
+  SharedEnv &env;
+  ConstraintTable &constraint_table;
   vector<SIRRT> low_level_planners;
   double sum_of_costs = 0.0;
   double makespan = 0.0;
 
-  SICBS(SharedEnv& env, ConstraintTable& constraint_table) : env(env), constraint_table(constraint_table) {
+  SICBS(SharedEnv &env, ConstraintTable &constraint_table) : env(env), constraint_table(constraint_table) {
     low_level_planners.reserve(env.num_of_robots);
     for (int i = 0; i < env.num_of_robots; i++) {
       low_level_planners.emplace_back(i, env, constraint_table);
@@ -41,9 +41,9 @@ class SICBS {
   ~SICBS() = default;
   Solution run();
   Solution getInitialSolution();
-  static double calculateCost(const Solution& solution);
-  void getConflicts(const Solution& solution, vector<Conflict>& conflicts) const;
-  void findConflicts(const Solution& solution, vector<Conflict>& conflicts) const;
+  static double calculateCost(const Solution &solution);
+  void getConflicts(const Solution &solution, vector<Conflict> &conflicts) const;
+  void findConflicts(const Solution &solution, vector<Conflict> &conflicts) const;
 };
 
-#endif  // SICBS_H
+#endif // SICBS_H

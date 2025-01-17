@@ -25,7 +25,7 @@ mapname = args.mapname
 obs = args.obs
 robotnum = args.robotnum
 testnum = args.testnum
-interval = 0.1
+interval = args.interval
 
 benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
 solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
@@ -136,7 +136,7 @@ def detect_collisions(current_time):
                 distance = np.linalg.norm(
                     np.array(agent1.center) - np.array(agent2.center)
                 )
-                if distance < 2 * (radius * 0.9):
+                if distance < 2 * radius:
                     agents[i].set_color("red")
                     agents[j].set_color("red")
                     print(

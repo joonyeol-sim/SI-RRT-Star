@@ -4,11 +4,11 @@
 #include "common.h"
 
 class HLNode {
- public:
+public:
   Solution solution;
   vector<Conflict> conflicts;
   vector<vector<Constraint>> constraint_table;
   double cost;
 };
 
-#endif  // HLNODE_H
+#endif // HLNODE_H

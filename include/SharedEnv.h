@@ -4,11 +4,10 @@
 #include "common.h"
 
 class SharedEnv {
- public:
+public:
   vector<double> max_expand_distances;
   vector<double> max_velocities;
-  const double epsilon = 0.01;
-  // double edge_moving_time = 10.0;
+  const double epsilon = 0.001;
   double time_resolution = 1.0;
   double check_time_resolution = 0.5;
   vector<int> iterations;
@@ -25,24 +24,14 @@ class SharedEnv {
   default_random_engine gen;
   string algorithm;
 
-  SharedEnv(int num_of_robots, int width, int height, const vector<Point>& start_points,
-            const vector<Point>& goal_points, const vector<double>& radii, const vector<double>& max_expand_distances,
-            const vector<double>& max_velocities,
-            const vector<int>& iterations, const vector<double>& goal_sample_rates,
-            const vector<shared_ptr<Obstacle>>& obstacles, string algorithm)
-      : num_of_robots(num_of_robots),
-        width(width),
-        height(height),
-        start_points(start_points),
-        goal_points(goal_points),
-        radii(radii),
-        max_expand_distances(max_expand_distances),
-        max_velocities(max_velocities),
-        iterations(iterations),
-        goal_sample_rates(goal_sample_rates),
-        obstacles(obstacles),
-        algorithm(std::move(algorithm)),
-        gen(seed) {}
+  SharedEnv(int num_of_robots, int width, int height, const vector<Point> &start_points,
+            const vector<Point> &goal_points, const vector<double> &radii, const vector<double> &max_expand_distances,
+            const vector<double> &max_velocities, const vector<int> &iterations,
+            const vector<double> &goal_sample_rates, const vector<shared_ptr<Obstacle>> &obstacles, string algorithm)
+      : num_of_robots(num_of_robots), width(width), height(height), start_points(start_points),
+        goal_points(goal_points), radii(radii), max_expand_distances(max_expand_distances),
+        max_velocities(max_velocities), iterations(iterations), goal_sample_rates(goal_sample_rates),
+        obstacles(obstacles), algorithm(std::move(algorithm)), gen(seed) {}
 
   void generateRandomInstance() {
     start_points.clear();
@@ -52,7 +41,7 @@ class SharedEnv {
     while (start_points.size() < num_of_robots) {
       uniform_real_distribution<> dis_width(radii[agent_id], width - radii[agent_id]);
       uniform_real_distribution<> dis_height(radii[agent_id], height - radii[agent_id]);
-      auto start_point = make_tuple(dis_width(gen), dis_height(gen));
+      auto start_point = Point(dis_width(gen), dis_height(gen));
       if (!obstacleConstrained(start_point, radii[agent_id]) && !occupied(start_point, radii[agent_id], start_points)) {
         start_points.emplace_back(start_point);
         agent_id++;
@@ -63,7 +52,7 @@ class SharedEnv {
     while (goal_points.size() < num_of_robots) {
       uniform_real_distribution<> dis_width(radii[agent_id], width - radii[agent_id]);
       uniform_real_distribution<> dis_height(radii[agent_id], height - radii[agent_id]);
-      auto goal_point = make_tuple(dis_width(gen), dis_height(gen));
+      auto goal_point = Point(dis_width(gen), dis_height(gen));
       if (!obstacleConstrained(goal_point, radii[agent_id]) && !occupied(goal_point, radii[agent_id], goal_points)) {
         goal_points.emplace_back(goal_point);
         agent_id++;
@@ -71,13 +60,13 @@ class SharedEnv {
     }
   }
 
-  bool obstacleConstrained(const Point& other_point, const double other_radius) const {
-    return any_of(obstacles.begin(), obstacles.end(), [&](const shared_ptr<Obstacle>& obstacle) {
+  bool obstacleConstrained(const Point &other_point, const double other_radius) const {
+    return any_of(obstacles.begin(), obstacles.end(), [&](const shared_ptr<Obstacle> &obstacle) {
       return obstacle->constrained(other_point, other_radius);
     });
   }
 
-  bool occupied(const Point& other_point, const double other_radius, const vector<Point>& other_points) const {
+  bool occupied(const Point &other_point, const double other_radius, const vector<Point> &other_points) const {
     for (int agent_id = 0; agent_id < other_points.size(); ++agent_id) {
       if (calculateDistance(other_point, other_points[agent_id]) < (radii[agent_id] + other_radius) * 2) {
         return true;
@@ -87,4 +76,4 @@ class SharedEnv {
   }
 };
 
-#endif  // SHAREDENV_H
+#endif // SHAREDENV_H

@@ -19,7 +19,7 @@ Solution SICBS::run() {
 
     if (curr_node.conflicts.empty()) {
       sum_of_costs = curr_node.cost;
-      for (const auto& path : curr_node.solution) {
+      for (const auto &path : curr_node.solution) {
         makespan = max(makespan, get<1>(path.back()));
       }
       return curr_node.solution;
@@ -64,7 +64,8 @@ Solution SICBS::run() {
       // update path
       // cout << "Planning for agent " << agent_ids[i] << endl;
       new_node.solution[agent_ids[i]] = low_level_planners[agent_ids[i]].run();
-      if (new_node.solution[agent_ids[i]].empty()) continue;
+      if (new_node.solution[agent_ids[i]].empty())
+        continue;
       // constraint_table.updateSoftConstraint(i, new_node.solution[agent_ids[i]]);
 
       // print after path
@@ -101,7 +102,7 @@ Solution SICBS::getInitialSolution() {
     threads[agent_id] = std::thread(plan_path, agent_id);
   }
 
-  for (auto& thread : threads) {
+  for (auto &thread : threads) {
     if (thread.joinable()) {
       thread.join();
     }
@@ -110,15 +111,15 @@ Solution SICBS::getInitialSolution() {
   return solution;
 }
 
-double SICBS::calculateCost(const Solution& solution) {
+double SICBS::calculateCost(const Solution &solution) {
   double cost = 0.0;
-  for (const auto& path : solution) {
+  for (const auto &path : solution) {
     cost += get<1>(path.back());
   }
   return cost;
 }
 
-void SICBS::findConflicts(const Solution& solution, vector<Conflict>& conflicts) const {
+void SICBS::findConflicts(const Solution &solution, vector<Conflict> &conflicts) const {
   for (int agent1_id = 0; agent1_id < env.num_of_robots; ++agent1_id) {
     for (int agent2_id = agent1_id + 1; agent2_id < env.num_of_robots; ++agent2_id) {
       Path partial_path1 = {};
@@ -168,29 +169,26 @@ void SICBS::findConflicts(const Solution& solution, vector<Conflict>& conflicts)
         assert(agent1_expand_time >= 0.0);
         assert(agent2_expand_time >= 0.0);
 
-        const auto agent1_theta =
-            atan2(get<1>(next_point1) - get<1>(prev_point1), get<0>(next_point1) - get<0>(prev_point1));
-        const auto agent2_theta =
-            atan2(get<1>(next_point2) - get<1>(prev_point2), get<0>(next_point2) - get<0>(prev_point2));
+        const auto agent1_theta = atan2(next_point1.y - prev_point1.y, next_point1.x - prev_point1.x);
+        const auto agent2_theta = atan2(next_point2.y - prev_point2.y, next_point2.x - prev_point2.x);
 
         auto agent1_point = prev_point1;
         if (agent1_theta != 0.0) {
-          agent1_point =
-              make_tuple(get<0>(prev_point1) + env.max_velocities[agent1_id] * cos(agent1_theta) * agent1_expand_time,
-                         get<1>(prev_point1) + env.max_velocities[agent1_id] * sin(agent1_theta) * agent1_expand_time);
+          agent1_point = Point(prev_point1.x + env.max_velocities[agent1_id] * cos(agent1_theta) * agent1_expand_time,
+                               prev_point1.y + env.max_velocities[agent1_id] * sin(agent1_theta) * agent1_expand_time);
         }
         auto agent2_point = prev_point2;
         if (agent2_theta != 0.0) {
-          agent2_point =
-              make_tuple(get<0>(prev_point2) + env.max_velocities[agent2_id] * cos(agent2_theta) * agent2_expand_time,
-                         get<1>(prev_point2) + env.max_velocities[agent2_id] * sin(agent2_theta) * agent2_expand_time);
+          agent2_point = Point(prev_point2.x + env.max_velocities[agent2_id] * cos(agent2_theta) * agent2_expand_time,
+                               prev_point2.y + env.max_velocities[agent2_id] * sin(agent2_theta) * agent2_expand_time);
         }
 
         if (is_safe && calculateDistance(agent1_point, agent2_point) < env.radii[agent1_id] + env.radii[agent2_id]) {
           is_safe = false;
           partial_path1.emplace_back(make_tuple(agent1_point, curr_time));
           partial_path2.emplace_back(make_tuple(agent2_point, curr_time));
-        } else if (!is_safe && calculateDistance(agent1_point, agent2_point) >= env.radii[agent1_id] + env.radii[agent2_id]) {
+        } else if (!is_safe &&
+                   calculateDistance(agent1_point, agent2_point) >= env.radii[agent1_id] + env.radii[agent2_id]) {
           is_safe = true;
           assert(curr_time >= get<1>(partial_path1.back()));
           assert(curr_time >= get<1>(partial_path2.back()));

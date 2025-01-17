@@ -32,14 +32,14 @@ int main(int argc, char *argv[]) {
                     "_" + testnum + "_data.txt";
   YAML::Node config = YAML::LoadFile(benchmarkPath);
 
-  vector<shared_ptr<Obstacle> > obstacles;
+  vector<shared_ptr<Obstacle>> obstacles;
   for (size_t i = 0; i < config["obstacles"].size(); ++i) {
     if (mapname == "CircleEnv") {
-      auto center = config["obstacles"][i]["center"].as<std::vector<double> >();
+      auto center = config["obstacles"][i]["center"].as<std::vector<double>>();
       auto radius = config["obstacles"][i]["radius"].as<double>();
       obstacles.emplace_back(make_shared<CircularObstacle>(center[0], center[1], radius));
     } else {
-      auto center = config["obstacles"][i]["center"].as<std::vector<double> >();
+      auto center = config["obstacles"][i]["center"].as<std::vector<double>>();
       auto height = config["obstacles"][i]["height"].as<double>();
       auto width = config["obstacles"][i]["width"].as<double>();
       obstacles.emplace_back(make_shared<RectangularObstacle>(center[0], center[1], width, height));
@@ -51,15 +51,15 @@ int main(int argc, char *argv[]) {
   start_points.reserve(config["startPoints"].size());
   goal_points.reserve(config["goalPoints"].size());
   for (size_t i = 0; i < config["startPoints"].size(); ++i) {
-    auto start = config["startPoints"][i].as<std::vector<double> >();
-    auto goal = config["goalPoints"][i].as<std::vector<double> >();
+    auto start = config["startPoints"][i].as<std::vector<double>>();
+    auto goal = config["goalPoints"][i].as<std::vector<double>>();
     start_points.emplace_back(start[0], start[1]);
     goal_points.emplace_back(goal[0], goal[1]);
   }
 
   int num_of_agents = config["agentNum"].as<int>();
-  int width = config["width"].as<int>(40);
-  int height = config["height"].as<int>(40);
+  int width = config["width"].as<int>(40.0);
+  int height = config["height"].as<int>(40.0);
   vector<double> radii;
   vector<double> max_expand_distances;
   vector<double> max_velocities;
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
       SIRRT sirrt(agent_id, env, constraint_table);
       auto path = sirrt.run();
-      // cout << "Agent " << agent_id << " found a solution" << endl;
+      cout << "Agent " << agent_id << " found a solution" << endl;
       solution.emplace_back(path);
       sum_of_costs += get<1>(path.back());
       makespan = max(makespan, get<1>(path.back()));
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
   }
 
   auto stop = std::chrono::high_resolution_clock::now();
-  chrono::duration<double, std::ratio<1> > duration = stop - start;
+  chrono::duration<double, std::ratio<1>> duration = stop - start;
 
   if (constraint_table.checkConflicts(solution)) {
     cout << "Conflict exists" << endl;
