@@ -78,14 +78,22 @@ bool ConstraintTable::obstacleConstrained(int agent_id, const Point &from_point,
 
 bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
                                         double to_time, double radius) const {
-  vector<Point> interpolated_points;
-  vector<double> interpolated_times;
-  interpolatePointTime(agent_id, from_point, to_point, from_time, to_time, interpolated_points, interpolated_times);
-  for (auto occupied_agent_id = 0; occupied_agent_id < path_table.size(); ++occupied_agent_id) {
+
+  // Calculate velocity for agent_id
+  const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
+  Velocity v1;
+  if (theta == 0.0)
+    v1 = Velocity(0.0, 0.0);
+  else
+    v1 = Velocity(env.max_velocities[agent_id] * cos(theta), env.max_velocities[agent_id] * sin(theta));
+
+  for (auto occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
     if (occupied_agent_id == agent_id)
       continue;
     if (path_table[occupied_agent_id].empty())
       continue;
+
+    double other_radius = env.radii[occupied_agent_id];
     // target conflict
     auto [last_point, last_time] = path_table[occupied_agent_id].back();
     // check if temporal constraint is satisfied
@@ -96,12 +104,15 @@ bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, c
         radius + calculateDistance(from_point, to_point) + env.radii[occupied_agent_id] + env.epsilon)
       continue;
 
-    for (int i = 0; i < interpolated_points.size(); ++i) {
-      if (last_time >= interpolated_times[i])
-        continue;
-      if (calculateDistance(last_point, interpolated_points[i]) < radius + env.radii[occupied_agent_id] + env.epsilon) {
-        return true;
-      }
+    auto v2 = Velocity(0.0, 0.0);
+
+    double collision_t = TimeToCollision(
+        /* agent1 */ from_point, radius, v1,
+        /* agent2 */ last_point, other_radius, v2,
+        /* time */ from_time, to_time);
+
+    if (collision_t > 0.0) {
+      return true; // 충돌
     }
   }
   return false;
@@ -138,6 +149,12 @@ bool ConstraintTable::pathConstrained(int agent_id, const Point &from_point, con
         continue;
       if (prev_time >= to_time)
         break;
+
+      // check if spatial constraint is satisfied
+      if (calculateDistance(from_point, prev_point) >= calculateDistance(from_point, to_point) + radius +
+                                                           calculateDistance(prev_point, next_point) +
+                                                           env.radii[occupied_agent_id] + env.epsilon)
+        continue;
 
       // Calculate velocity for occupied_agent_id
       const auto occupied_theta = atan2(next_point.y - prev_point.y, next_point.x - prev_point.x);
