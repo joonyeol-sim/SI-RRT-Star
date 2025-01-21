@@ -387,48 +387,212 @@ bool ConstraintTable::hardConstrained(int agent_id, const Point &from_point, con
 }
 
 // THIS FUNCTION IS FOR PRIORITIZED PLANNING
+// void ConstraintTable::getSafeIntervalTablePath(int agent_id, const Point &to_point, double radius,
+//                                                vector<Interval> &safe_intervals) const {
+//   assert(safe_intervals.empty());
+//   safe_intervals.emplace_back(0.0, numeric_limits<double>::infinity());
+//   for (auto occupied_agent_id = 0; occupied_agent_id < path_table.size(); ++occupied_agent_id) {
+//     if (occupied_agent_id == agent_id)
+//       continue;
+//     if (path_table[occupied_agent_id].empty())
+//       continue;
+//     // vertex-edge conflict
+//     bool is_safe = true;
+//     double collision_start_time = 0.0;
+//     for (int i = 0; i < path_table[occupied_agent_id].size() - 1; ++i) {
+//       auto [prev_point, prev_time] = path_table[occupied_agent_id][i];
+//       auto [next_point, next_time] = path_table[occupied_agent_id][i + 1];
+//
+//       vector<Point> interpolated_points;
+//       vector<double> interpolated_times;
+//       interpolatePointTime(occupied_agent_id, prev_point, next_point, prev_time, next_time, interpolated_points,
+//                            interpolated_times);
+//       for (int j = 0; j < interpolated_points.size(); ++j) {
+//         if (is_safe &&
+//             calculateDistance(to_point, interpolated_points[j]) < radius + env.radii[occupied_agent_id] +
+//             env.epsilon) {
+//           is_safe = false;
+//           collision_start_time = interpolated_times[j];
+//         } else if (!is_safe && calculateDistance(to_point, interpolated_points[j]) >=
+//                                    radius + env.radii[occupied_agent_id] + env.epsilon) {
+//           is_safe = true;
+//           assert(collision_start_time < interpolated_times[j]);
+//           insertCollisionIntervalToSIT(safe_intervals, collision_start_time, interpolated_times[j]);
+//           if (safe_intervals.empty())
+//             return;
+//         }
+//       }
+//     }
+//     if (!is_safe) {
+//       // target conflict
+//       insertCollisionIntervalToSIT(safe_intervals, collision_start_time, numeric_limits<double>::infinity());
+//       if (safe_intervals.empty())
+//         return;
+//     }
+//   }
+// }
+
+/**
+ * @brief Given that agent_id is effectively "stationary" at to_point (with radius),
+ *        compute the safe time intervals [0, +∞) \ collision times, i.e.,
+ *        times at which the agent can be at 'to_point' without colliding
+ *        with any segment of other agents' paths.
+ *
+ * @note This version does not do time-sampling interpolation; it uses
+ *       continuous collision detection to find exact collision intervals.
+ */
 void ConstraintTable::getSafeIntervalTablePath(int agent_id, const Point &to_point, double radius,
-                                               vector<Interval> &safe_intervals) const {
+                                               std::vector<Interval> &safe_intervals) const {
+  // Start with a single safe interval [0, +∞)
   assert(safe_intervals.empty());
-  safe_intervals.emplace_back(0.0, numeric_limits<double>::infinity());
-  for (auto occupied_agent_id = 0; occupied_agent_id < path_table.size(); ++occupied_agent_id) {
+  safe_intervals.emplace_back(0.0, std::numeric_limits<double>::infinity());
+
+  // Precompute environment's epsilon once if needed
+  double eps = env.epsilon;
+
+  for (int occupied_agent_id = 0; occupied_agent_id < (int)path_table.size(); ++occupied_agent_id) {
+    // Skip self or empty path
     if (occupied_agent_id == agent_id)
       continue;
     if (path_table[occupied_agent_id].empty())
       continue;
-    // vertex-edge conflict
-    bool is_safe = true;
-    double collision_start_time = 0.0;
-    for (int i = 0; i < path_table[occupied_agent_id].size() - 1; ++i) {
-      auto [prev_point, prev_time] = path_table[occupied_agent_id][i];
-      auto [next_point, next_time] = path_table[occupied_agent_id][i + 1];
 
-      vector<Point> interpolated_points;
-      vector<double> interpolated_times;
-      interpolatePointTime(occupied_agent_id, prev_point, next_point, prev_time, next_time, interpolated_points,
-                           interpolated_times);
-      for (int j = 0; j < interpolated_points.size(); ++j) {
-        if (is_safe &&
-            calculateDistance(to_point, interpolated_points[j]) < radius + env.radii[occupied_agent_id] + env.epsilon) {
-          is_safe = false;
-          collision_start_time = interpolated_times[j];
-        } else if (!is_safe && calculateDistance(to_point, interpolated_points[j]) >=
-                                   radius + env.radii[occupied_agent_id] + env.epsilon) {
-          is_safe = true;
-          assert(collision_start_time < interpolated_times[j]);
-          insertCollisionIntervalToSIT(safe_intervals, collision_start_time, interpolated_times[j]);
+    // For convenience
+    double other_radius = env.radii[occupied_agent_id];
+
+    // Go through each edge of the other agent's path
+    const auto &other_path = path_table[occupied_agent_id];
+    for (int i = 0; i < (int)other_path.size() - 1; ++i) {
+      auto [prev_point, prev_time] = other_path[i];
+      auto [next_point, next_time] = other_path[i + 1];
+      if (next_time <= 0.0)
+        continue; // If next_time <= 0, collision would be before we even start. (If your times start at 0)
+      if (prev_time >= std::numeric_limits<double>::infinity())
+        break; // Unlikely, but just in case.
+
+      // If you want to skip intervals that don't overlap [0,∞):
+      if (prev_time > safe_intervals.back().second)
+        break; // No overlap with [0,∞)
+
+      // 1) We treat "to_point" (radius) as stationary circle, the other agent as moving circle.
+      //    We'll define local param tau in [0, segment_duration], where segment_duration = next_time - prev_time.
+      double segment_duration = next_time - prev_time;
+      if (segment_duration <= 1e-9)
+        continue; // No real motion or degenerate segment
+
+      // 2) Shift coordinate so that agent_id's circle is at origin (0,0).
+      //    Then the other agent's initial center at tau=0 is w = (prev_point - to_point).
+      Point w(prev_point.x - to_point.x, prev_point.y - to_point.y);
+
+      // 3) Relative velocity v2 = (next_point - prev_point)/segment_duration
+      Velocity v2((next_point.x - prev_point.x) / segment_duration, (next_point.y - prev_point.y) / segment_duration);
+
+      // The combined radius
+      double combined_radius = radius + other_radius;
+
+      // 4) Solve the standard quadratic for circle-circle collision in *relative* motion:
+      //    dist^2( w + v2 * tau , 0 ) = (combined_radius)^2.
+      //
+      //    Let difference_v = v2 (since the "stationary" circle has velocity 0).
+      //    a = v2 . v2
+      //    b = w . v2
+      //    c = w . w - (combined_radius)^2
+      //    Then we find times 0 <= tau <= segment_duration that satisfy:
+      //        (w + v2*tau)^2 = (combined_radius)^2
+      //
+      Velocity difference_v = v2;
+      double a = difference_v.dot(difference_v);
+      double b = w.dot(difference_v);
+      double c = w.dot(w) - combined_radius * combined_radius;
+
+      // If c<0, the circles are already overlapping at tau=0
+      // We'll find if/when they exit.
+      // If c>0 but discriminant<0 => no collision at all.
+      double discr = b * b - a * c;
+      if (a < 1e-12) {
+        // Means the other agent segment is effectively zero velocity (or extremely small).
+        // Then the position is w for the entire segment => either always or never in collision.
+        if (w.x * w.x + w.y * w.y <= combined_radius * combined_radius) {
+          // Colliding entire [prev_time, next_time]
+          insertCollisionIntervalToSIT(safe_intervals, prev_time, next_time);
           if (safe_intervals.empty())
             return;
         }
+        // else no collision
+        continue;
       }
-    }
-    if (!is_safe) {
-      // target conflict
-      insertCollisionIntervalToSIT(safe_intervals, collision_start_time, numeric_limits<double>::infinity());
+
+      // If discr < 0 => no real intersection times => no collision
+      if (discr < 0.0) {
+        // But if c < 0, we are in collision for all tau, but a>0 => check that scenario
+        if (c < 0) {
+          // c<0, a>0, discr<0 => circles are overlapping at all times in [0, segment_duration]
+          insertCollisionIntervalToSIT(safe_intervals, prev_time, next_time);
+          if (safe_intervals.empty())
+            return;
+        }
+        continue;
+      }
+
+      // We have two solutions: tau1 <= tau2
+      double sqrt_discr = std::sqrt(discr);
+      double tau1 = (-b - sqrt_discr) / a;
+      double tau2 = (-b + sqrt_discr) / a;
+      if (tau1 > tau2)
+        std::swap(tau1, tau2);
+
+      // If c < 0 => we start inside collision => collision starts at tau=0 and possibly ends at tau2
+      // Otherwise, collision starts at tau1 and ends at tau2 (if they overlap [0,segment_duration]).
+      double coll_start = 0.0, coll_end = 0.0;
+
+      if (c < 0.0) {
+        // Already colliding at tau=0
+        coll_start = 0.0;
+        coll_end = tau2; // we might leave collision at tau2
+      } else {
+        // collision enters at tau1, leaves at tau2
+        coll_start = tau1;
+        coll_end = tau2;
+      }
+
+      // We only care about collisions within [0, segment_duration]
+      if (coll_end < 0.0 || coll_start > segment_duration) {
+        // The collision times are entirely outside [0, segment_duration]
+        continue;
+      }
+      // Clamp to [0, segment_duration]
+      coll_start = std::max(coll_start, 0.0);
+      coll_end = std::min(coll_end, segment_duration);
+      if (coll_end <= coll_start)
+        continue; // no intersection or degenerate
+
+      // Convert local [coll_start, coll_end] to global times => [prev_time + coll_start, prev_time + coll_end].
+      double global_start = prev_time + coll_start;
+      double global_end = prev_time + coll_end;
+
+      // Insert that collision interval into SIT
+      insertCollisionIntervalToSIT(safe_intervals, global_start, global_end);
+      if (safe_intervals.empty())
+        return;
+    } // end for each path segment
+
+    // Finally, handle "target conflict" style:
+    // If the other agent stays at last_point after last_time,
+    // check if that last_point is within combined_radius => collision from [last_time, ∞).
+    auto [final_point, final_time] = other_path.back();
+    double dx = final_point.x - to_point.x;
+    double dy = final_point.y - to_point.y;
+    double dist2 = dx * dx + dy * dy;
+    double combined_radius = radius + other_radius + eps;
+    if (dist2 <= combined_radius * combined_radius) {
+      // Collides from [final_time, +∞)
+      insertCollisionIntervalToSIT(safe_intervals, final_time, std::numeric_limits<double>::infinity());
       if (safe_intervals.empty())
         return;
     }
   }
+
+  // If we get here, safe_intervals are the times [0,∞) minus all collisions
 }
 
 void ConstraintTable::getSafeIntervalTable(int agent_id, const Point &to_point, double radius,
