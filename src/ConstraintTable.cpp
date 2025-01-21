@@ -63,29 +63,178 @@ double ConstraintTable::TimeToCollision(const Point &start_point1, double radius
 //   return tau;
 // }
 
+// 선분(에이전트 중심 경로) vs 원(장애물) 충돌 검사
+//  - A, B: 선분의 양 끝점
+//  - rA: 에이전트의 반지름
+//  - C: 원(장애물) 중심
+//  - rC: 원(장애물) 반지름
+bool checkCollisionSegmentCircle(const Point &A, const Point &B, double rA, const Point &C, double rC) {
+  double R = rA + rC; // 두 원의 합
+  auto [Ax, Ay] = A;
+  auto [Bx, By] = B;
+  auto [Cx, Cy] = C;
+
+  double ABx = Bx - Ax;
+  double ABy = By - Ay;
+  double ACx = Cx - Ax;
+  double ACy = Cy - Ay;
+  double AB_len2 = ABx * ABx + ABy * ABy;
+
+  // 1) 직선으로 봤을 때 투영 t 계산
+  double t = (ACx * ABx + ACy * ABy) / AB_len2;
+  // 2) 선분이므로 [0,1] 범위로 clamp
+  if (t < 0.0)
+    t = 0.0;
+  if (t > 1.0)
+    t = 1.0;
+
+  // 3) 선분 위 가장 가까운 점 P(t)
+  double closestX = Ax + t * ABx;
+  double closestY = Ay + t * ABy;
+
+  // 4) 그 점이 장애물의 중심 C와 R 거리 이하인지 확인
+  double dx = (Cx - closestX);
+  double dy = (Cy - closestY);
+  double dist2 = dx * dx + dy * dy;
+  return (dist2 <= (R * R));
+}
+
+// Liang-Barsky에 쓸 헬퍼 함수
+// p, q => 경계를 나타내는 식에서 나온 계수
+// [u1, u2] => 현재 선분 파라미터 t의 유효 구간
+// 반환값: 만약 clipTest 결과 구간이 소멸하면 false => 충돌X
+static bool clipTest(double p, double q, double &u1, double &u2) {
+  // p == 0 => 선이 경계에 평행
+  // q < 0 => 완전히 경계 밖, etc.
+  if (fabs(p) < 1e-12) {
+    // 근사적으로 p==0 => 선이 이 경계와 평행
+    if (q < 0.0)
+      return false; // 완전히 밖
+    // else => 경계에 평행 & 내부 => 구간 변화 없음
+    return true;
+  }
+
+  double r = q / p;
+  if (p < 0.0) {
+    // 잠재적 진입
+    if (r > u2)
+      return false;
+    else if (r > u1)
+      u1 = r;
+  } else {
+    // p > 0 => 잠재적 이탈
+    if (r < u1)
+      return false;
+    else if (r < u2)
+      u2 = r;
+  }
+  return true;
+}
+
+/**
+ * @brief 선분(A->B) vs 직사각형(중심 rectCenter, 폭=rectW, 높이=rectH) 충돌 검사
+ *        에이전트 반지름 rA를 직사각형 폭/높이에 합쳐 놓아(확장),
+ *        Liang-Barsky 알고리즘으로 "t in [0,1] 교차 구간"을 구해 충돌 여부 반환
+ */
+bool checkCollisionSegmentRect(const Point &A, const Point &B, double rA, const Point &rectCenter, double rectW,
+                               double rectH) {
+  // 1) 직사각형 확장
+  auto [cx, cy] = rectCenter;
+  double halfW = rectW / 2.0 + rA;
+  double halfH = rectH / 2.0 + rA;
+
+  // AABB의 left, right, top, bottom
+  double left = cx - halfW;
+  double right = cx + halfW;
+  double top = cy - halfH;
+  double bottom = cy + halfH;
+
+  // 2) 선분 A->B를 파라미터화
+  double Ax = A.x;
+  double Ay = A.y;
+  double Bx = B.x;
+  double By = B.y;
+
+  double dx = Bx - Ax;
+  double dy = By - Ay;
+
+  // Liang-Barsky => u1=0, u2=1에서 시작
+  double u1 = 0.0, u2 = 1.0;
+
+  // 경계별로 clipTest(p, q, u1, u2)
+  //  "x >= left" => dx>0 => p = -dx, q= Ax - left ...
+  //  순서: left, right, top, bottom
+
+  // (1) x >= left  =>  Ax + t*dx >= left
+  //  => dx*t >= left - Ax
+  //  => dx*t - (left - Ax) >= 0
+  {
+    double p = -dx;
+    double q = Ax - left;
+    if (!clipTest(p, q, u1, u2))
+      return false;
+  }
+
+  // (2) x <= right => Ax + t*dx <= right
+  {
+    double p = dx;
+    double q = right - Ax;
+    if (!clipTest(p, q, u1, u2))
+      return false;
+  }
+
+  // (3) y >= top => Ay + t*dy >= top
+  {
+    double p = -dy;
+    double q = Ay - top;
+    if (!clipTest(p, q, u1, u2))
+      return false;
+  }
+
+  // (4) y <= bottom => Ay + t*dy <= bottom
+  {
+    double p = dy;
+    double q = bottom - Ay;
+    if (!clipTest(p, q, u1, u2))
+      return false;
+  }
+
+  // 만약 여기까지 왔다면, [u1, u2]가 (0~1)에서 소멸하지 않음
+  // => 선분이 박스와 교차구간이 존재
+  // "충돌"로 본다면 true
+  if (u2 < u1)
+    return false; // 혹시라도 역전이면 충돌 없음
+  if (u1 > 1.0 || u2 < 0.0)
+    return false; // 교집합이 [0,1] 범위 밖
+  return true;
+}
+
 bool ConstraintTable::obstacleConstrained(int agent_id, const Point &from_point, const Point &to_point,
-                                          double radius) const {
-  vector<Point> interpolated_points;
-  interpolatePoint(agent_id, from_point, to_point, interpolated_points);
-  for (auto &interpolated_point : interpolated_points) {
-    for (const auto &obstacle : env.obstacles) {
-      if (obstacle->constrained(interpolated_point, radius))
-        return true;
+                                          double agent_radius) const {
+  // 에이전트가 (from_point -> to_point)로 이동하는 선분을
+  // 모든 장애물과 각각 "선분 vs 장애물" 검사
+  for (const auto &obs : env.obstacles) {
+    // 원형 장애물인 경우
+    if (auto *circ = dynamic_cast<CircularObstacle *>(obs.get())) {
+      // 선분 vs 원 충돌 검사
+      if (checkCollisionSegmentCircle(from_point, to_point, agent_radius, circ->point, circ->radius)) {
+        return true; // 충돌
+      }
+    }
+    // 직사각형 장애물인 경우
+    else if (auto *rect = dynamic_cast<RectangularObstacle *>(obs.get())) {
+      // 선분 vs 직사각형 충돌 검사
+      if (checkCollisionSegmentRect(from_point, to_point, agent_radius, rect->point, rect->width, rect->height)) {
+        return true; // 충돌
+      }
     }
   }
+  // 모든 장애물과 충돌X
   return false;
 }
 
 bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
                                         double to_time, double radius) const {
-
-  // Calculate velocity for agent_id
-  const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-  Velocity v1;
-  if (theta == 0.0)
-    v1 = Velocity(0.0, 0.0);
-  else
-    v1 = Velocity(env.max_velocities[agent_id] * cos(theta), env.max_velocities[agent_id] * sin(theta));
 
   for (auto occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
     if (occupied_agent_id == agent_id)
@@ -99,19 +248,8 @@ bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, c
     // check if temporal constraint is satisfied
     if (last_time >= to_time)
       continue;
-    // check if spatial constraint is satisfied
-    if (calculateDistance(from_point, last_point) >=
-        radius + calculateDistance(from_point, to_point) + env.radii[occupied_agent_id] + env.epsilon)
-      continue;
 
-    auto v2 = Velocity(0.0, 0.0);
-
-    double collision_t = TimeToCollision(
-        /* agent1 */ from_point, radius, v1,
-        /* agent2 */ last_point, other_radius, v2,
-        /* time */ from_time, to_time);
-
-    if (collision_t > 0.0) {
+    if (checkCollisionSegmentCircle(from_point, to_point, radius, last_point, other_radius) == true) {
       return true; // 충돌
     }
   }
@@ -185,73 +323,6 @@ bool ConstraintTable::pathConstrained(int agent_id, const Point &from_point, con
   }
   return false;
 }
-
-// bool ConstraintTable::pathConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
-//                                       double to_time, double radius) const {
-//   assert(from_time < to_time);
-//   // const auto velocity_from2to = calculateDistance(from_point, to_point) / env.edge_moving_time;
-//   const auto velocity_from2to = env.max_velocities[agent_id];
-//   for (auto occupied_agent_id = 0; occupied_agent_id < path_table.size(); ++occupied_agent_id) {
-//     if (occupied_agent_id == agent_id)
-//       continue;
-//     if (path_table[occupied_agent_id].empty())
-//       continue;
-//     // vertex-edge conflict
-//     for (int i = 0; i < path_table[occupied_agent_id].size() - 1; ++i) {
-//       auto [prev_point, prev_time] = path_table[occupied_agent_id][i];
-//       auto [next_point, next_time] = path_table[occupied_agent_id][i + 1];
-//
-//       // check if temporal constraint is satisfied
-//       if (next_time <= from_time)
-//         continue;
-//       if (prev_time >= to_time)
-//         break;
-//       // check if spatial constraint is satisfied
-//       if (calculateDistance(from_point, prev_point) >= calculateDistance(from_point, to_point) + radius +
-//                                                            calculateDistance(prev_point, next_point) +
-//                                                            env.radii[occupied_agent_id] + env.epsilon)
-//         continue;
-//
-//       double start_time = max(from_time, prev_time);
-//       double end_time = min(to_time, next_time);
-//
-//       // const auto velocity_prev2next = calculateDistance(prev_point, next_point) / env.edge_moving_time;
-//       const auto velocity_prev2next = env.max_velocities[occupied_agent_id];
-//
-//       auto curr_time = start_time;
-//       while (curr_time <= end_time) {
-//         // get point at start_time
-//         const auto occupied_moving_time = curr_time - prev_time;
-//         assert(occupied_moving_time >= 0.0);
-//         const auto occupied_theta = atan2(next_point.y - prev_point.y, next_point.x - prev_point.x);
-//
-//         auto occupied_point = prev_point;
-//         if (occupied_theta != 0.0) {
-//           occupied_point = Point(prev_point.x + velocity_prev2next * cos(occupied_theta) * occupied_moving_time,
-//                                  prev_point.y + velocity_prev2next * sin(occupied_theta) * occupied_moving_time);
-//         }
-//
-//         // get point2 at start_time
-//         const auto moving_time = curr_time - from_time;
-//         assert(moving_time >= 0.0);
-//         const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-//
-//         auto point = from_point;
-//         if (theta != 0.0) {
-//           point = Point(from_point.x + velocity_from2to * cos(theta) * moving_time,
-//                         from_point.y + velocity_from2to * sin(theta) * moving_time);
-//         }
-//
-//         if (calculateDistance(point, occupied_point) < radius + env.radii[occupied_agent_id] + env.epsilon) {
-//           return true;
-//         }
-//
-//         curr_time += env.check_time_resolution;
-//       }
-//     }
-//   }
-//   return false;
-// }
 
 bool ConstraintTable::hardConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
                                       double to_time, double radius) const {
