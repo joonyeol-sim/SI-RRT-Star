@@ -10,11 +10,14 @@ class SIRRT {
 public:
   std::uniform_real_distribution<> dis_width;
   std::uniform_real_distribution<> dis_height;
+  std::uniform_real_distribution<> dis_velocity;
   std::uniform_real_distribution<> dis_100;
   vector<shared_ptr<LLNode>> nodes;
   shared_ptr<LLNode> goal_node;
   Point start_point;
   Point goal_point;
+  Velocity start_velocity;
+  Velocity goal_velocity;
   Path path;
   int agent_id;
   SharedEnv &env;
@@ -23,13 +26,16 @@ public:
 
   SIRRT(int agent_id, SharedEnv &env, ConstraintTable &constraint_table)
       : dis_width(env.radii[agent_id], env.width - env.radii[agent_id]),
-        dis_height(env.radii[agent_id], env.height - env.radii[agent_id]), dis_100(0.0, 100.0), env(env),
+        dis_height(env.radii[agent_id], env.height - env.radii[agent_id]), dis_100(0.0, 100.0),
+        dis_velocity(-env.max_velocities[agent_id], env.max_velocities[agent_id]), env(env),
         constraint_table(constraint_table), agent_id(agent_id), start_point(env.start_points[agent_id]),
-        goal_point(env.goal_points[agent_id]) {}
+        goal_point(env.goal_points[agent_id]), start_velocity(Velocity(0.0, 0.0)), goal_velocity(Velocity(0.0, 0.0)) {}
   ~SIRRT() = default;
   Path run();
   Point generateRandomPoint();
+  Velocity generateRandomVelocity();
   shared_ptr<LLNode> getNearestNode(const Point &point) const;
+  shared_ptr<LLNode> getNearestNode(const Point &point, const Velocity &velocity) const;
   Point steer(const shared_ptr<LLNode> &from_node, const Point &random_point,
               SafeIntervalTable &safe_interval_table) const;
   Path updatePath(const shared_ptr<LLNode> &goal_node) const;
