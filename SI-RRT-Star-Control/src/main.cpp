@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   string benchmarkPath = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
                          robotnum + "_" + testnum + ".yaml";
   string solutionPath = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
-                        robotnum + "_" + testnum + "_solution.txt";
+                        robotnum + "_" + testnum + "_solution.yaml";
   string dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum +
                     "_" + testnum + "_data.txt";
   YAML::Node config = YAML::LoadFile(benchmarkPath);
@@ -71,49 +71,52 @@ int main(int argc, char *argv[]) {
     max_expand_distances.emplace_back(5.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
-    iterations.emplace_back(1500);
+    iterations.emplace_back(500);
     goal_sample_rates.emplace_back(10.0);
   }
 
   SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances,
                             max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
-  Solution solution;
+  ControlSolution control_solution;
   auto start = std::chrono::high_resolution_clock::now();
   double sum_of_costs = 0.0;
   double makespan = 0.0;
 
   if (algorithm == "cbs") {
     // SI-CCBS
-    SICBS sicbs(env, constraint_table);
-    solution = sicbs.run();
-    sum_of_costs = sicbs.sum_of_costs;
-    makespan = sicbs.makespan;
+    // SICBS sicbs(env, constraint_table);
+    // solution = sicbs.run();
+    // sum_of_costs = sicbs.sum_of_costs;
+    // makespan = sicbs.makespan;
   } else if (algorithm == "pp") {
     // SI-CPP
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
       SIRRT sirrt(agent_id, env, constraint_table);
-      auto path = sirrt.run();
+      auto control_path = sirrt.run();
       cout << "Agent " << agent_id << " found a solution" << endl;
-      solution.emplace_back(path);
-      sum_of_costs += get<1>(path.back());
-      makespan = max(makespan, get<1>(path.back()));
-      constraint_table.path_table[agent_id] = path;
+      control_solution.emplace_back(control_path);
+      validateControlPath(control_path, start_points[agent_id], Velocity(0.0, 0.0), goal_points[agent_id],
+                          Velocity(0.0, 0.0), 1.0);
+      // sum_of_costs += get<1>(path.back());
+      // makespan = max(makespan, get<1>(path.back()));
+      // constraint_table.path_table[agent_id] = path;
     }
   }
 
   auto stop = std::chrono::high_resolution_clock::now();
   chrono::duration<double, std::ratio<1>> duration = stop - start;
 
-  if (constraint_table.checkConflicts(solution)) {
-    cout << "Conflict exists" << endl;
-  }
+  // if (constraint_table.checkConflicts(solution)) {
+  //   cout << "Conflict exists" << endl;
+  // }
 
   cout << "sum of cost: " << sum_of_costs << endl;
   cout << "makespan: " << makespan << endl;
   cout << "computation time: " << duration.count() << endl;
-  saveSolution(solution, solutionPath);
-  saveData(sum_of_costs, makespan, duration.count(), dataPath);
+  saveControlSolution(control_solution, solutionPath);
+  // saveSolution(solution, solutionPath);
+  // saveData(sum_of_costs, makespan, duration.count(), dataPath);
 
   return 0;
 }

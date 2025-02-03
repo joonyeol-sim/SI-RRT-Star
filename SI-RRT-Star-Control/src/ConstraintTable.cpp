@@ -634,26 +634,32 @@ void ConstraintTable::getSafeIntervalTable(int agent_id, const Point &to_point, 
   }
 }
 
-double ConstraintTable::getEarliestArrivalTime(int agent_id, const Point &from_point, const Point &to_point,
-                                               double expand_time, double lower_bound, double upper_bound,
-                                               double radius) const {
-  double earliest_arrival_time = lower_bound;
-  while (earliest_arrival_time < upper_bound) {
-    if (env.algorithm == "pp") {
-      if (targetConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time, earliest_arrival_time,
-                            radius))
-        return -1.0;
-      if (!pathConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time, earliest_arrival_time,
-                           radius))
-        return earliest_arrival_time;
-    } else if (env.algorithm == "cbs") {
-      if (!hardConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time, earliest_arrival_time,
-                           radius))
-        return earliest_arrival_time;
-    }
-    earliest_arrival_time += env.time_resolution;
-  }
-  return -1.0;
+optional<double> ConstraintTable::getEarliestArrivalTime(int agent_id, const Point &from_point, const Point &to_point,
+                                                         double expand_time, double lower_bound, double upper_bound,
+                                                         double radius) const {
+  return lower_bound;
+  // double earliest_arrival_time = lower_bound;
+  // double a_max = env.a_max;
+  // while (earliest_arrival_time < upper_bound) {
+  //   if (env.algorithm == "pp") {
+  //     if (targetConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
+  //     earliest_arrival_time,
+  //                           radius))
+  //       return nullopt;
+  //     if (!pathConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
+  //     earliest_arrival_time,
+  //                          radius))
+  //       return earliest_arrival_time;
+  //   } else if (env.algorithm == "cbs") {
+  //     if (!hardConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
+  //     earliest_arrival_time,
+  //                          radius))
+  //       return earliest_arrival_time;
+  //   }
+  //   a_max -= 0.1;
+  //   earliest_arrival_time = calculateCostToGo(from_point, to_point, a_max);
+  // }
+  // return nullopt;
 }
 
 void ConstraintTable::insertCollisionIntervalToSIT(vector<Interval> &safe_intervals, double t_min, double t_max) const {

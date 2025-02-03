@@ -18,7 +18,7 @@ public:
   Point goal_point;
   Velocity start_velocity;
   Velocity goal_velocity;
-  Path path;
+  ControlPath control_path;
   int agent_id;
   SharedEnv &env;
   ConstraintTable &constraint_table;
@@ -31,16 +31,16 @@ public:
         constraint_table(constraint_table), agent_id(agent_id), start_point(env.start_points[agent_id]),
         goal_point(env.goal_points[agent_id]), start_velocity(Velocity(0.0, 0.0)), goal_velocity(Velocity(0.0, 0.0)) {}
   ~SIRRT() = default;
-  Path run();
-  Point generateRandomPoint();
+  ControlPath run();
+  pair<Point, Velocity> generateRandomState();
   Velocity generateRandomVelocity();
   shared_ptr<LLNode> getNearestNode(const Point &point) const;
   shared_ptr<LLNode> getNearestNode(const Point &point, const Velocity &velocity) const;
-  Point steer(const shared_ptr<LLNode> &from_node, const Point &random_point,
-              SafeIntervalTable &safe_interval_table) const;
-  Path updatePath(const shared_ptr<LLNode> &goal_node) const;
+  optional<Point> steer(const shared_ptr<LLNode> &from_node, const Point &random_point,
+                        SafeIntervalTable &safe_interval_table) const;
+  ControlPath updatePath(const shared_ptr<LLNode> &goal_node) const;
   void getNeighbors(Point point, vector<shared_ptr<LLNode>> &neighbors) const;
-  vector<shared_ptr<LLNode>> chooseParent(const Point &new_point, const vector<shared_ptr<LLNode>> &neighbors,
+  vector<shared_ptr<LLNode>> chooseParent(const Point &new_point, const Velocity &new_velocity,
                                           SafeIntervalTable &safe_interval_table) const;
   void rewire(const vector<shared_ptr<LLNode>> &new_nodes, const vector<shared_ptr<LLNode>> &neighbors);
   void release();

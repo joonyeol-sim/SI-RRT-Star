@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(SI-RRTStar-Control)
+project(SI-RRT-Star-Control)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -19,7 +19,7 @@ link_directories(/opt/homebrew/lib)
 file(GLOB SOURCES "src/*.cpp")
 
 # 실행 파일 생성
-add_executable(SI-RRTStar-Control ${SOURCES})
+add_executable(SI-RRT-Star-Control ${SOURCES})
 
 # 라이브러리 링크
-target_link_libraries(SI-RRTStar-Control PRIVATE ${Boost_LIBRARIES} yaml-cpp)
+target_link_libraries(SI-RRT-Star-Control PRIVATE ${Boost_LIBRARIES} yaml-cpp)

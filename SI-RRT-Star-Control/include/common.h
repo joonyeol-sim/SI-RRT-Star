@@ -56,53 +56,32 @@ public:
   double dot(const Velocity &other) const { return x * other.x + y * other.y; }
 };
 
-class BaseControl {
-protected:
+class Control {
+public:
   pair<double, double> control_first; // (a_acc, t_acc)
+  pair<double, double> control_const; // (a_const, t_const)
   pair<double, double> control_last;  // (a_dec, t_dec)
 
-public:
-  BaseControl(double acc_first, double t_first, double acc_last, double t_last)
-      : control_first{acc_first, t_first}, control_last{acc_last, t_last} {}
+  Control(double acc_first, double t_first, double acc_last, double t_last, double acc_const = 0.0,
+          double t_const = 0.0)
+      : control_first{acc_first, t_first}, control_last{acc_last, t_last}, control_const{acc_const, t_const} {}
 
   virtual void print() const {
     cout << "acc_first: " << control_first.first << ", t_first: " << control_first.second << endl;
+    cout << "acc_const: " << control_const.first << ", t_const: " << control_const.second << endl;
     cout << "acc_last: " << control_last.first << ", t_last: " << control_last.second << endl;
   }
 
-  virtual ~BaseControl() = default;
-};
-
-class BasicControl : public BaseControl {
-public:
-  using BaseControl::BaseControl;
-
-  void print() const override {
-    cout << "=== Basic Control ===" << endl;
-    BaseControl::print();
-  }
-};
-
-class ConstControl : public BaseControl {
-private:
-  pair<double, double> constant; // (a_const, t_const)
-
-public:
-  ConstControl(double acc_first, double t_first, double acc_const, double t_const, double acc_last, double t_last)
-      : BaseControl(acc_first, t_first, acc_last, t_last), constant{acc_const, t_const} {}
-
-  void print() const override {
-    cout << "=== Const Control ===" << endl;
-    BaseControl::print();
-    cout << "acc_const: " << constant.first << ", t_const: " << constant.second << endl;
-  }
+  virtual ~Control() = default;
 };
 
 using Path = std::vector<std::tuple<Point, double>>;
+using ControlPath = std::tuple<std::vector<Control>, std::vector<Control>>;
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
 using Constraint = std::tuple<double, Path>;
 using Solution = std::vector<Path>;
+using ControlSolution = std::vector<ControlPath>;
 
 void openFile(ofstream &file, const string &filename);
 
@@ -112,29 +91,34 @@ void savePath(const Path &path, const string &filename);
 
 void saveSolution(const Solution &solution, const string &filename);
 
+void saveControlSolution(const std::vector<ControlPath> &control_solution, const string &filename);
+
 void saveData(double cost, double makespan, double duration, const string &filename);
 
 double calculateDistance(Point point1, Point point2);
 
-std::optional<BasicControl> findControlAccDec(double x1, double x2, double v1, double v2, double v_max, double a_max);
+std::optional<Control> findControlAccDec(double x1, double x2, double v1, double v2, double v_max, double a_max);
 
-std::optional<BasicControl> findControlDecAcc(double x1, double x2, double v1, double v2, double v_min, double a_max);
+std::optional<Control> findControlDecAcc(double x1, double x2, double v1, double v2, double v_min, double a_max);
 
-std::optional<BasicControl> findControlAccDec_T(double x1, double x2, double v1, double v2, double v_max, double T);
+std::optional<Control> findControlAccDec_T(double x1, double x2, double v1, double v2, double v_max, double T);
 
-std::optional<BasicControl> findControlDecAcc_T(double x1, double x2, double v1, double v2, double v_min, double T);
+std::optional<Control> findControlDecAcc_T(double x1, double x2, double v1, double v2, double v_min, double T);
 
-std::optional<ConstControl> findConstControlAccDec(double x1, double x2, double v1, double v2, double v_max,
-                                                   double a_max);
+std::optional<Control> findConstControlAccDec(double x1, double x2, double v1, double v2, double v_max, double a_max);
 
-std::optional<ConstControl> findConstControlDecAcc(double x1, double x2, double v1, double v2, double v_min,
-                                                   double a_max);
+std::optional<Control> findConstControlDecAcc(double x1, double x2, double v1, double v2, double v_min, double a_max);
 
-std::optional<ConstControl> findConstControlAccDec_T(double x1, double x2, double v1, double v2, double v_max,
-                                                     double T);
+std::optional<Control> findConstControlAccDec_T(double x1, double x2, double v1, double v2, double v_max, double T);
 
-std::optional<ConstControl> findConstControlDecAcc_T(double x1, double x2, double v1, double v2, double v_min,
-                                                     double T);
+std::optional<Control> findConstControlDecAcc_T(double x1, double x2, double v1, double v2, double v_min, double T);
+
+std::optional<double> calculateCostToGo(const Point &start, const Point &goal, const Velocity &v_start,
+                                        const Velocity &v_goal, double v_max, double a_max);
+
+std::optional<std::tuple<double, std::unique_ptr<Control>, std::unique_ptr<Control>>>
+calculateCostToGoWithControls(const Point &start, const Point &goal, const Velocity &v_start, const Velocity &v_goal,
+                              double v_max, double a_max);
 
 struct PointHash {
   size_t operator()(const Point &point) const {
@@ -198,4 +182,10 @@ public:
   }
 };
 
+std::tuple<double, double, double> computeFinalState(const std::vector<Control> &controls, double start_pos,
+                                                     double start_velocity = 0.0);
+void validateControlPath(const ControlPath &cp, const Point &start_pos, const Velocity &start_vel,
+                         const Point &goal_pos, const Velocity goal_vel, double tolerance);
+void validateControl(const Control &control, double from_pos, double from_vel, double to_pos, double to_vel,
+                     double tolerance);
 #endif // COMMON_H

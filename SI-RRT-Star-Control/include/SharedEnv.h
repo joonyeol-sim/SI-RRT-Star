@@ -15,6 +15,8 @@ public:
   int num_of_robots;
   int width;
   int height;
+  double v_max = 5.0;
+  double a_max = 1.0;
   vector<double> radii;
   vector<Point> start_points;
   vector<Point> goal_points;
