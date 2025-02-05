@@ -16,7 +16,7 @@ parser.add_argument(
 )
 parser.add_argument("--testnum", "-t", type=str, required=True, help="Test number")
 parser.add_argument(
-    "--interval", "-i", type=float, default=0.01, help="Time interval for updates"
+    "--interval", "-i", type=float, default=0.05, help="Time interval for updates"
 )
 args = parser.parse_args()
 

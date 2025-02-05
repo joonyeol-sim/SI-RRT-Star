@@ -212,6 +212,10 @@ bool ConstraintTable::obstacleConstrained(int agent_id, const Point &from_point,
     double py, vy;
     std::tie(py, vy) = evaluateControlState(y_control, from_point.y, from_velocity.y, elapsed);
 
+    if (px < env.radii[agent_id] || px > env.width - env.radii[agent_id] || py < env.radii[agent_id] ||
+        py > env.height - env.radii[agent_id]) {
+      return true; // 경계 밖으로 나가면 충돌
+    }
     Point current_pos(px, py);
 
     // (3) 모든 장애물에 대해 충돌 판정

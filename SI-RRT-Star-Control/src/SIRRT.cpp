@@ -54,14 +54,14 @@ bool SIRRT::run() {
       }
     }
 
-    // vector<shared_ptr<LLNode>> neighbors;
-    // getNeighbors(random_point, random_velocity, neighbors);
-    // assert(!neighbors.empty());
-    vector<shared_ptr<LLNode>> new_nodes = chooseParent(random_point, random_velocity, safe_interval_table);
+    vector<shared_ptr<LLNode>> neighbors;
+    getNeighbors(random_point, random_velocity, neighbors);
+    assert(!neighbors.empty());
+    vector<shared_ptr<LLNode>> new_nodes = chooseParent(random_point, random_velocity, safe_interval_table, nodes);
     if (new_nodes.empty()) {
       continue;
     }
-    rewire(new_nodes);
+    rewire(new_nodes, nodes);
 
     // check goal
     for (auto &new_node : new_nodes) {
@@ -174,9 +174,11 @@ void SIRRT::getNeighbors(Point point, Velocity velocity, vector<shared_ptr<LLNod
 
   const double connection_cost_to_go = env.max_expand_distances[agent_id] + env.epsilon;
   for (const auto &node : nodes) {
-    const double distance =
-        calculateCostToGo(node->point, point, node->velocity, velocity, env.v_max, env.a_max).value();
-    if (distance < connection_cost_to_go) {
+    optional<double> cost_to_go = calculateCostToGo(node->point, point, node->velocity, velocity, env.v_max, env.a_max);
+    if (cost_to_go == nullopt) {
+      continue;
+    }
+    if (cost_to_go.value() < connection_cost_to_go) {
       // if (constraint_table.obstacleConstrained(agent_id, node->point, point, env.radii[agent_id]))
       //   continue;
       neighbors.emplace_back(node);
@@ -185,7 +187,8 @@ void SIRRT::getNeighbors(Point point, Velocity velocity, vector<shared_ptr<LLNod
 }
 
 vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Velocity &new_velocity,
-                                               SafeIntervalTable &safe_interval_table) const {
+                                               SafeIntervalTable &safe_interval_table,
+                                               const vector<shared_ptr<LLNode>> &neighbors) const {
   assert(!nodes.empty());
 
   auto new_nodes = vector<shared_ptr<LLNode>>();
@@ -195,7 +198,7 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Vel
     if (new_node->interval.first >= best_arrival_time)
       continue;
 
-    for (const auto &node : nodes) {
+    for (const auto &node : neighbors) {
       if (node->earliest_arrival_time >= new_node->interval.second)
         continue;
       if (node->interval.second <= new_node->interval.first)
@@ -228,10 +231,10 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Vel
   return new_nodes;
 }
 
-void SIRRT::rewire(const vector<shared_ptr<LLNode>> &new_nodes) {
+void SIRRT::rewire(const vector<shared_ptr<LLNode>> &new_nodes, const vector<shared_ptr<LLNode>> &neighbors) {
   assert(!nodes.empty());
   for (auto &new_node : new_nodes) {
-    for (auto &node : nodes) {
+    for (auto &node : neighbors) {
       if (new_node->earliest_arrival_time >= node->interval.second)
         continue;
       if (new_node->interval.second <= node->interval.first)

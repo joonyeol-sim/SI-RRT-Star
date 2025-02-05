@@ -42,8 +42,9 @@ public:
   tuple<Path, Trajectory> extractPathAndTrajectory(const shared_ptr<LLNode> &goal_node);
   void getNeighbors(Point point, Velocity velocity, vector<shared_ptr<LLNode>> &neighbors) const;
   vector<shared_ptr<LLNode>> chooseParent(const Point &new_point, const Velocity &new_velocity,
-                                          SafeIntervalTable &safe_interval_table) const;
-  void rewire(const vector<shared_ptr<LLNode>> &new_nodes);
+                                          SafeIntervalTable &safe_interval_table,
+                                          const vector<shared_ptr<LLNode>> &neighbors) const;
+  void rewire(const vector<shared_ptr<LLNode>> &new_nodes, const vector<shared_ptr<LLNode>> &);
   void release();
 };
 
