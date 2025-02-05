@@ -1,6 +1,6 @@
 #include "SIRRT.h"
 
-ControlPath SIRRT::run() {
+bool SIRRT::run() {
   release();
   SafeIntervalTable safe_interval_table(env);
 
@@ -54,11 +54,14 @@ ControlPath SIRRT::run() {
       }
     }
 
+    // vector<shared_ptr<LLNode>> neighbors;
+    // getNeighbors(random_point, random_velocity, neighbors);
+    // assert(!neighbors.empty());
     vector<shared_ptr<LLNode>> new_nodes = chooseParent(random_point, random_velocity, safe_interval_table);
     if (new_nodes.empty()) {
       continue;
     }
-    // rewire(new_nodes, neighbors);
+    rewire(new_nodes);
 
     // check goal
     for (auto &new_node : new_nodes) {
@@ -79,12 +82,11 @@ ControlPath SIRRT::run() {
 
   if (goal_node->earliest_arrival_time < numeric_limits<double>::infinity()) {
     nodes.push_back(goal_node);
-    control_path = updatePath(goal_node);
-    return control_path;
+    std::tie(path, trajectory) = extractPathAndTrajectory(goal_node);
+    return true;
   }
 
-  // cout << "No path found!" << endl;
-  return control_path;
+  return false;
 }
 
 pair<Point, Velocity> SIRRT::generateRandomState() {
@@ -137,37 +139,46 @@ shared_ptr<LLNode> SIRRT::getNearestNode(const Point &point, const Velocity &vel
   return nearest_node;
 }
 
-ControlPath SIRRT::updatePath(const shared_ptr<LLNode> &goal_node) const {
-  std::vector<Control> x_controls;
-  std::vector<Control> y_controls;
+tuple<Path, Trajectory> SIRRT::extractPathAndTrajectory(const shared_ptr<LLNode> &goal_node) {
+  Trajectory temp_trajectory;
+  Path temp_path;
 
   shared_ptr<LLNode> curr_node = goal_node;
   while (curr_node->parent != nullptr) {
+    // path update
+    temp_path.emplace_back(curr_node->point, curr_node->velocity, curr_node->earliest_arrival_time);
+
+    // trajectory update
     validateControl(curr_node->x_control, curr_node->parent->point.x, curr_node->parent->velocity.x, curr_node->point.x,
                     curr_node->velocity.x, env.epsilon);
     validateControl(curr_node->y_control, curr_node->parent->point.y, curr_node->parent->velocity.y, curr_node->point.y,
                     curr_node->velocity.y, env.epsilon);
-    x_controls.push_back(curr_node->x_control);
-    y_controls.push_back(curr_node->y_control);
+    XYControl xy_control(curr_node->x_control, curr_node->y_control);
+    temp_trajectory.emplace_back(xy_control);
+
+    // recursion
     curr_node = curr_node->parent;
   }
+  temp_path.emplace_back(start_point, start_velocity, 0.0);
+  temp_trajectory.emplace_back(Control(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), Control(0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
 
-  std::reverse(x_controls.begin(), x_controls.end());
-  std::reverse(y_controls.begin(), y_controls.end());
+  std::reverse(temp_path.begin(), temp_path.end());
+  std::reverse(temp_trajectory.begin(), temp_trajectory.end());
 
-  return {std::move(x_controls), std::move(y_controls)};
+  return {temp_path, temp_trajectory};
 }
 
-void SIRRT::getNeighbors(Point point, vector<shared_ptr<LLNode>> &neighbors) const {
+void SIRRT::getNeighbors(Point point, Velocity velocity, vector<shared_ptr<LLNode>> &neighbors) const {
   assert(!nodes.empty());
   assert(neighbors.empty());
 
-  const double connection_radius = env.max_expand_distances[agent_id] + env.epsilon;
+  const double connection_cost_to_go = env.max_expand_distances[agent_id] + env.epsilon;
   for (const auto &node : nodes) {
-    const double distance = calculateDistance(node->point, point);
-    if (distance < connection_radius) {
-      if (constraint_table.obstacleConstrained(agent_id, node->point, point, env.radii[agent_id]))
-        continue;
+    const double distance =
+        calculateCostToGo(node->point, point, node->velocity, velocity, env.v_max, env.a_max).value();
+    if (distance < connection_cost_to_go) {
+      // if (constraint_table.obstacleConstrained(agent_id, node->point, point, env.radii[agent_id]))
+      //   continue;
       neighbors.emplace_back(node);
     }
   }
@@ -175,6 +186,8 @@ void SIRRT::getNeighbors(Point point, vector<shared_ptr<LLNode>> &neighbors) con
 
 vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Velocity &new_velocity,
                                                SafeIntervalTable &safe_interval_table) const {
+  assert(!nodes.empty());
+
   auto new_nodes = vector<shared_ptr<LLNode>>();
 
   for (auto &safe_interval : safe_interval_table.table[new_point]) {
@@ -183,26 +196,28 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Vel
       continue;
 
     for (const auto &node : nodes) {
-      if (node->earliest_arrival_time >= new_node->earliest_arrival_time)
+      if (node->earliest_arrival_time >= new_node->interval.second)
+        continue;
+      if (node->interval.second <= new_node->interval.first)
         continue;
 
-      auto cost_with_controls = calculateCostToGoWithControls(node->point, new_node->point, node->velocity,
-                                                              new_node->velocity, env.v_max, env.a_max);
-      if (!cost_with_controls)
+      // 기존에는 wait 동작을 통해서 충돌을 피했지만, 이제는 충돌을 피하기 위해 가속도를 조절한다.
+      auto earliest_arrival_control = constraint_table.getEarliestArrivalControl(
+          agent_id, node->point, new_node->point, node->velocity, new_node->velocity, node->earliest_arrival_time,
+          new_node->interval.first, new_node->interval.second, env.radii[agent_id]);
+      if (earliest_arrival_control == nullopt)
         continue;
 
-      auto [expand_time, x_control, y_control] = std::move(*cost_with_controls);
-      double earliest_arrival_time = node->earliest_arrival_time + expand_time;
+      // it doesn't matter whether the control is x or y
+      double moving_time = earliest_arrival_control->x_control.control_first.second +
+                           earliest_arrival_control->x_control.control_const.second +
+                           earliest_arrival_control->x_control.control_last.second;
+      double earliest_arrival_time = node->earliest_arrival_time + moving_time;
       if (earliest_arrival_time < new_node->earliest_arrival_time) {
-        // 검증: 부모 상태(node)에서 새 노드(new_node)로의 전이가 올바른지 확인
-        double tol = env.epsilon; // 허용 오차
-        validateControl(*x_control, node->point.x, node->velocity.x, new_node->point.x, new_node->velocity.x, tol);
-        validateControl(*y_control, node->point.y, node->velocity.y, new_node->point.y, new_node->velocity.y, tol);
-
         new_node->earliest_arrival_time = earliest_arrival_time;
         new_node->parent = node;
-        new_node->x_control = *x_control;
-        new_node->y_control = *y_control;
+        new_node->x_control = earliest_arrival_control->x_control;
+        new_node->y_control = earliest_arrival_control->y_control;
       }
     }
     if (new_node->parent) {
@@ -213,41 +228,39 @@ vector<shared_ptr<LLNode>> SIRRT::chooseParent(const Point &new_point, const Vel
   return new_nodes;
 }
 
-// void SIRRT::rewire(const vector<shared_ptr<LLNode>> &new_nodes, const vector<shared_ptr<LLNode>> &neighbors) {
-//   assert(!neighbors.empty());
-//   for (auto &new_node : new_nodes) {
-//     for (auto &neighbor : neighbors) {
-//       if (neighbor->interval.first >= best_arrival_time)
-//         continue;
-//       if (new_node->earliest_arrival_time >= neighbor->earliest_arrival_time)
-//         continue;
-//       const double expand_time = calculateDistance(neighbor->point, new_node->point) / env.max_velocities[agent_id];
-//       const double lower_bound = new_node->earliest_arrival_time + expand_time;
-//       const double upper_bound = new_node->interval.second + expand_time;
-//
-//       if (lower_bound >= best_arrival_time)
-//         continue;
-//       if (lower_bound >= neighbor->interval.second)
-//         continue;
-//       if (upper_bound <= neighbor->interval.first)
-//         continue;
-//
-//       const double earliest_arrival_time = constraint_table.getEarliestArrivalTime(
-//           agent_id, new_node->point, neighbor->point, expand_time, max(neighbor->interval.first, lower_bound),
-//           min(neighbor->interval.second, upper_bound), env.radii[agent_id]);
-//       if (earliest_arrival_time < 0.0)
-//         continue;
-//
-//       if (earliest_arrival_time < neighbor->earliest_arrival_time) {
-//         neighbor->earliest_arrival_time = earliest_arrival_time;
-//         neighbor->parent = new_node;
-//       }
-//     }
-//   }
-// }
+void SIRRT::rewire(const vector<shared_ptr<LLNode>> &new_nodes) {
+  assert(!nodes.empty());
+  for (auto &new_node : new_nodes) {
+    for (auto &node : nodes) {
+      if (new_node->earliest_arrival_time >= node->interval.second)
+        continue;
+      if (new_node->interval.second <= node->interval.first)
+        continue;
+
+      auto earliest_arrival_control = constraint_table.getEarliestArrivalControl(
+          agent_id, new_node->point, node->point, new_node->velocity, node->velocity, new_node->earliest_arrival_time,
+          node->interval.first, node->interval.second, env.radii[agent_id]);
+      if (earliest_arrival_control == nullopt)
+        continue;
+
+      double moving_time = earliest_arrival_control->x_control.control_first.second +
+                           earliest_arrival_control->x_control.control_const.second +
+                           earliest_arrival_control->x_control.control_last.second;
+      double earliest_arrival_time = node->earliest_arrival_time + moving_time;
+      if (earliest_arrival_time < node->earliest_arrival_time) {
+        node->earliest_arrival_time = earliest_arrival_time;
+        node->parent = new_node;
+        node->x_control = earliest_arrival_control->x_control;
+        node->y_control = earliest_arrival_control->y_control;
+      }
+    }
+  }
+}
 
 void SIRRT::release() {
   nodes.clear();
+  path.clear();
+  trajectory.clear();
   goal_node = nullptr;
   best_arrival_time = numeric_limits<double>::infinity();
 }

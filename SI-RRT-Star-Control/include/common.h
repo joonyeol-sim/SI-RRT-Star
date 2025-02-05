@@ -3,6 +3,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
 #include <boost/functional/hash.hpp>
 #include <boost/heap/fibonacci_heap.hpp>
 #include <cmath>
@@ -14,7 +16,9 @@
 #include <string>
 #include <thread>
 #include <tuple>
+#include <unsupported/Eigen/Polynomials>
 #include <utility>
+
 #include <vector>
 
 using namespace std;
@@ -75,27 +79,40 @@ public:
   virtual ~Control() = default;
 };
 
-using Path = std::vector<std::tuple<Point, double>>;
-using ControlPath = std::tuple<std::vector<Control>, std::vector<Control>>;
+class XYControl {
+public:
+  Control x_control;
+  Control y_control;
+
+  XYControl(Control x_control, Control y_control) : x_control(x_control), y_control(y_control) {}
+
+  virtual void print() const {
+    cout << "X control:" << endl;
+    x_control.print();
+    cout << "Y control:" << endl;
+    y_control.print();
+  }
+
+  virtual ~XYControl() = default;
+};
+
+using Path = std::vector<std::tuple<Point, Velocity, double>>; // (point, velocity, time)
+using Trajectory = std::vector<XYControl>;
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
 using Constraint = std::tuple<double, Path>;
-using Solution = std::vector<Path>;
-using ControlSolution = std::vector<ControlPath>;
+using PathSolution = std::vector<Path>;
+using TrajectorySolution = std::vector<Trajectory>;
 
 void openFile(ofstream &file, const string &filename);
 
-void writePath(ofstream &file, const Path &path);
-
-void savePath(const Path &path, const string &filename);
-
-void saveSolution(const Solution &solution, const string &filename);
-
-void saveControlSolution(const std::vector<ControlPath> &control_solution, const string &filename);
+void saveSolution(const PathSolution &path_solution, const TrajectorySolution &trajectory_solution,
+                  const string &filename);
 
 void saveData(double cost, double makespan, double duration, const string &filename);
 
 double calculateDistance(Point point1, Point point2);
+double calculateDistance(double x1, double y1, double x2, double y2);
 
 std::optional<Control> findControlAccDec(double x1, double x2, double v1, double v2, double v_max, double a_max);
 
@@ -113,12 +130,16 @@ std::optional<Control> findConstControlAccDec_T(double x1, double x2, double v1,
 
 std::optional<Control> findConstControlDecAcc_T(double x1, double x2, double v1, double v2, double v_min, double T);
 
-std::optional<double> calculateCostToGo(const Point &start, const Point &goal, const Velocity &v_start,
-                                        const Velocity &v_goal, double v_max, double a_max);
+std::optional<double> calculateCostToGo(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                                        const Velocity &to_velocity, double v_max, double a_max);
 
-std::optional<std::tuple<double, std::unique_ptr<Control>, std::unique_ptr<Control>>>
-calculateCostToGoWithControls(const Point &start, const Point &goal, const Velocity &v_start, const Velocity &v_goal,
-                              double v_max, double a_max);
+std::optional<std::tuple<std::unique_ptr<Control>, std::unique_ptr<Control>>>
+calculateControls(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                  const Velocity &to_velocity, double v_max, double a_max);
+
+std::optional<std::tuple<std::unique_ptr<Control>, std::unique_ptr<Control>>>
+calculateControlsWithT(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                       const Velocity &to_velocity, double v_max, double a_max, double T);
 
 struct PointHash {
   size_t operator()(const Point &point) const {
@@ -182,10 +203,10 @@ public:
   }
 };
 
-std::tuple<double, double, double> computeFinalState(const std::vector<Control> &controls, double start_pos,
-                                                     double start_velocity = 0.0);
-void validateControlPath(const ControlPath &cp, const Point &start_pos, const Velocity &start_vel,
-                         const Point &goal_pos, const Velocity goal_vel, double tolerance);
+std::tuple<double, double> evaluateControlState(const Control &control, double start_pos, double start_vel,
+                                                std::optional<double> t);
+void validateTrajectory(const Trajectory &trajectory, const Point &start_pos, const Velocity &start_vel,
+                        const Point &goal_pos, const Velocity goal_vel, double tolerance);
 void validateControl(const Control &control, double from_pos, double from_vel, double to_pos, double to_vel,
                      double tolerance);
 #endif // COMMON_H

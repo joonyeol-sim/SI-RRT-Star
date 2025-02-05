@@ -67,8 +67,8 @@ int main(int argc, char *argv[]) {
   vector<int> iterations;
   vector<double> goal_sample_rates;
   for (int i = 0; i < num_of_agents; ++i) {
-    radii.emplace_back(0.5);
-    max_expand_distances.emplace_back(5.0);
+    radii.emplace_back(0.5 * 1.1);
+    max_expand_distances.emplace_back(10.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
     iterations.emplace_back(500);
@@ -78,7 +78,10 @@ int main(int argc, char *argv[]) {
   SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances,
                             max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
-  ControlSolution control_solution;
+
+  PathSolution path_solution;
+  TrajectorySolution trajectory_solution;
+
   auto start = std::chrono::high_resolution_clock::now();
   double sum_of_costs = 0.0;
   double makespan = 0.0;
@@ -93,14 +96,24 @@ int main(int argc, char *argv[]) {
     // SI-CPP
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
       SIRRT sirrt(agent_id, env, constraint_table);
-      auto control_path = sirrt.run();
+      bool success = sirrt.run();
+      if (!success) {
+        cout << "Agent " << agent_id << " failed to find a solution" << endl;
+        break;
+      }
       cout << "Agent " << agent_id << " found a solution" << endl;
-      control_solution.emplace_back(control_path);
-      validateControlPath(control_path, start_points[agent_id], Velocity(0.0, 0.0), goal_points[agent_id],
-                          Velocity(0.0, 0.0), 1.0);
-      // sum_of_costs += get<1>(path.back());
-      // makespan = max(makespan, get<1>(path.back()));
-      // constraint_table.path_table[agent_id] = path;
+
+      path_solution.emplace_back(sirrt.path);
+      trajectory_solution.emplace_back(sirrt.trajectory);
+
+      sum_of_costs += get<2>(sirrt.path.back());
+      makespan = max(makespan, get<2>(sirrt.path.back()));
+
+      constraint_table.path_table[agent_id] = sirrt.path;
+      constraint_table.trajectory_table[agent_id] = sirrt.trajectory;
+
+      validateTrajectory(sirrt.trajectory, start_points[agent_id], Velocity(0.0, 0.0), goal_points[agent_id],
+                         Velocity(0.0, 0.0), 1.0);
     }
   }
 
@@ -114,7 +127,7 @@ int main(int argc, char *argv[]) {
   cout << "sum of cost: " << sum_of_costs << endl;
   cout << "makespan: " << makespan << endl;
   cout << "computation time: " << duration.count() << endl;
-  saveControlSolution(control_solution, solutionPath);
+  saveSolution(path_solution, trajectory_solution, solutionPath);
   // saveSolution(solution, solutionPath);
   // saveData(sum_of_costs, makespan, duration.count(), dataPath);
 

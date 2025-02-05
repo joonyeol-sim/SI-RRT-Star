@@ -17,6 +17,7 @@ public:
   int height;
   double v_max = 5.0;
   double a_max = 1.0;
+  double dt = 0.1;
   vector<double> radii;
   vector<Point> start_points;
   vector<Point> goal_points;

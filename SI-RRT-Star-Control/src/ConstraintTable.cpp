@@ -3,65 +3,48 @@
 double ConstraintTable::TimeToCollision(const Point &start_point1, double radius1, Velocity &v1,
                                         const Point &start_point2, double radius2, Velocity &v2, double start_time,
                                         double end_time) const {
+  // 두 원(로봇)의 충돌 반경 합
   double combined_radius = radius1 + radius2;
-  Point w = start_point2 - start_point1;
-  double c = w.dot(w) - combined_radius * combined_radius;
 
+  // Point 구조체를 Eigen::Vector2d로 변환
+  Eigen::Vector2d p1(start_point1.x, start_point1.y);
+  Eigen::Vector2d p2(start_point2.x, start_point2.y);
+
+  // 두 점 사이의 벡터
+  Eigen::Vector2d w = p2 - p1;
+
+  // 충돌 여부 판단: 두 원의 중심 간 거리가 (rA + rC)보다 작으면 이미 충돌 상태
+  double c = w.squaredNorm() - combined_radius * combined_radius;
   if (c < 0) {
-    // Agents are already colliding
-    return start_time;
+    return start_time; // 이미 충돌 중이면 시작 시간을 반환
   }
 
-  Velocity difference_v = v1 - v2;
-  double a = difference_v.dot(difference_v);
-  double b = w.dot(difference_v);
-  double discr = b * b - a * c;
+  // Velocity 구조체를 Eigen::Vector2d로 변환
+  Eigen::Vector2d v1_e(v1.x, v1.y);
+  Eigen::Vector2d v2_e(v2.x, v2.y);
 
+  // 두 속도의 차이를 계산
+  Eigen::Vector2d diff_v = v1_e - v2_e;
+  double a = diff_v.squaredNorm();
+  double b = w.dot(diff_v);
+
+  // 이차 방정식의 판별식
+  double discr = b * b - a * c;
   if (discr <= 0) {
-    // No collision
+    // 실근이 없으면 충돌이 발생하지 않는 것으로 판단
     return -1.0;
   }
 
+  // 충돌이 발생하는 시간 (tau) 계산
   double tau = (b - std::sqrt(discr)) / a;
 
-  if (tau < 0 or tau > end_time) {
-    // Collision occurs outside the time interval
+  // 주어진 시간 구간 내에서 충돌이 발생하는지 검사
+  if (tau < 0 || tau > end_time) {
     return -1.0;
   }
 
   return tau;
 }
-
-// double ConstraintTable::TimeToCollision(const Point &start_point1, double radius1, Velocity &v1,
-//                                         const Point &start_point2, double radius2, Velocity &v2, double start_time,
-//                                         double end_time) const {
-//   double c = (start_point2.x - start_point1.x) * (start_point2.x - start_point1.x) +
-//              (start_point2.y - start_point1.y) * (start_point2.y - start_point1.y) -
-//              (radius1 + radius2) * (radius1 + radius2);
-//
-//   if (c < 0) {
-//     // Agents are already colliding
-//     return start_time;
-//   }
-//
-//   double a = (v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y);
-//   double b = (start_point2.x - start_point1.x) * (v1.x - v2.x) + (start_point2.y - start_point1.y) * (v1.y - v2.y);
-//   double discr = b * b - a * c;
-//
-//   if (discr <= 0) {
-//     // No collision
-//     return -1.0;
-//   }
-//
-//   double tau = (b - std::sqrt(discr)) / a;
-//
-//   if (tau < 0 or tau > end_time) {
-//     // Collision occurs outside the time interval
-//     return -1.0;
-//   }
-//
-//   return tau;
-// }
 
 // 선분(에이전트 중심 경로) vs 원(장애물) 충돌 검사
 //  - A, B: 선분의 양 끝점
@@ -209,115 +192,132 @@ bool checkCollisionSegmentRect(const Point &A, const Point &B, double rA, const 
   return true;
 }
 
-bool ConstraintTable::obstacleConstrained(int agent_id, const Point &from_point, const Point &to_point,
-                                          double agent_radius) const {
-  // 에이전트가 (from_point -> to_point)로 이동하는 선분을
-  // 모든 장애물과 각각 "선분 vs 장애물" 검사
-  for (const auto &obs : env.obstacles) {
-    // 원형 장애물인 경우
-    if (auto *circ = dynamic_cast<CircularObstacle *>(obs.get())) {
-      // 선분 vs 원 충돌 검사
-      if (checkCollisionSegmentCircle(from_point, to_point, agent_radius, circ->point, circ->radius)) {
-        return true; // 충돌
+bool ConstraintTable::obstacleConstrained(int agent_id, const Point &from_point, const Velocity &from_velocity,
+                                          double from_time, double to_time, const Control &x_control,
+                                          const Control &y_control, double agent_radius) const {
+  // from_time부터 to_time까지 env.dt 간격으로 반복
+  for (double t = from_time; t <= to_time; t += env.dt) {
+    // 혹시 t가 부동소수점 때문에 to_time을 살짝 넘어갈 수 있으므로 보정
+    if (t > to_time) {
+      t = to_time;
+    }
+
+    // (1) 현재 시점에서의 경과시간
+    double elapsed = t - from_time;
+
+    // (2) evaluateControlState()로 x축, y축 위치 계산
+    double px, vx;
+    std::tie(px, vx) = evaluateControlState(x_control, from_point.x, from_velocity.x, elapsed);
+
+    double py, vy;
+    std::tie(py, vy) = evaluateControlState(y_control, from_point.y, from_velocity.y, elapsed);
+
+    Point current_pos(px, py);
+
+    // (3) 모든 장애물에 대해 충돌 판정
+    for (const auto &obs : env.obstacles) {
+      // obstacle->constrained(...)는 "current_pos가 obstacle에 닿거나 침범하면 true"
+      if (obs->constrained(current_pos, agent_radius)) {
+        return true; // 충돌 발생
       }
     }
-    // 직사각형 장애물인 경우
-    else if (auto *rect = dynamic_cast<RectangularObstacle *>(obs.get())) {
-      // 선분 vs 직사각형 충돌 검사
-      if (checkCollisionSegmentRect(from_point, to_point, agent_radius, rect->point, rect->width, rect->height)) {
-        return true; // 충돌
-      }
+
+    // 이미 to_time에 도달했다면 검사 종료
+    if (t >= to_time - 1e-9) {
+      break;
     }
   }
-  // 모든 장애물과 충돌X
-  return false;
+
+  return false; // 전 구간에서 충돌 없음
 }
 
-bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
-                                        double to_time, double radius) const {
-
-  for (auto occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
+bool ConstraintTable::targetConstrained(int agent_id, const Point &from_point, const Velocity &from_velocity,
+                                        double from_time, double to_time, const Control &x_control,
+                                        const Control &y_control, double radius) const {
+  // 다른 모든 에이전트(occupied_agent_id)의 "마지막 지점"을 확인
+  for (int occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
     if (occupied_agent_id == agent_id)
       continue;
     if (path_table[occupied_agent_id].empty())
       continue;
 
+    auto [last_point, last_velocity, last_time] = path_table[occupied_agent_id].back();
     double other_radius = env.radii[occupied_agent_id];
-    // target conflict
-    auto [last_point, last_time] = path_table[occupied_agent_id].back();
-    // check if temporal constraint is satisfied
     if (last_time >= to_time)
       continue;
 
-    if (checkCollisionSegmentCircle(from_point, to_point, radius, last_point, other_radius) == true) {
-      return true; // 충돌
+    for (double t = from_time; t <= to_time; t += env.dt) {
+      // 3-1) 우리 에이전트 위치 계산
+      double elapsed = t - from_time; // from_time 이후로 얼마나 지났나
+      double our_x, our_y, our_vx, our_vy;
+      // 예시) evaluateControlState( control, init_pos, init_vel, elapsed_time )
+      std::tie(our_x, our_vx) = evaluateControlState(x_control, from_point.x, from_velocity.x, elapsed);
+      std::tie(our_y, our_vy) = evaluateControlState(y_control, from_point.y, from_velocity.y, elapsed);
+
+      // 3-2) 상대 에이전트 마지막 위치(정지)와 거리 확인
+      double dist = calculateDistance(our_x, our_y, last_point.x, last_point.y);
+      if (dist < radius + other_radius + env.epsilon) {
+        // 충돌 발생!
+        return true;
+      }
     }
   }
-  return false;
+
+  return false; // 모든 마지막 지점과 충돌하지 않음
 }
 
-bool ConstraintTable::pathConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time,
-                                      double to_time, double radius) const {
+bool ConstraintTable::pathConstrained(int agent_id, const Point &from_point, Velocity from_velocity, double from_time,
+                                      double to_time, Control &x_control, Control &y_control, double radius) const {
   assert(from_time < to_time);
-
-  // Calculate velocity for agent_id
-  const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-  Velocity v1;
-  if (theta == 0.0)
-    v1 = Velocity(0.0, 0.0);
-  else
-    v1 = Velocity(env.max_velocities[agent_id] * cos(theta), env.max_velocities[agent_id] * sin(theta));
-
-  for (auto occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
-    if (occupied_agent_id == agent_id)
+  // 모든 다른 에이전트에 대해 (충돌 여부 검사)
+  for (int other_agent_id = 0; other_agent_id < static_cast<int>(path_table.size()); ++other_agent_id) {
+    if (other_agent_id == agent_id)
       continue;
-    if (path_table[occupied_agent_id].empty())
+    if (path_table[other_agent_id].empty())
       continue;
 
-    double other_radius = env.radii[occupied_agent_id];
-    const auto &other_path = path_table[occupied_agent_id];
+    double other_radius = env.radii[other_agent_id];
+    const auto &other_path = path_table[other_agent_id];
+    const auto &other_trajectory = trajectory_table[other_agent_id]; // 각 segment마다 XYControl 정보가 있음
 
-    // vertex-edge conflict
-    for (int i = 0; i < static_cast<int>(other_path.size()) - 1; ++i) {
-      auto [prev_point, prev_time] = other_path[i];
-      auto [next_point, next_time] = other_path[i + 1];
+    // 다른 에이전트의 경로에 대해, 인접한 두 점(즉, 하나의 segment)마다 검사
+    // (여기서는 other_trajectory의 크기가 other_path.size()-1라고 가정)
+    for (size_t i = 0; i < other_path.size() - 1; ++i) {
+      Point prev_point, next_point;
+      Velocity prev_velocity, next_velocity;
+      double prev_time, next_time;
+      std::tie(prev_point, prev_velocity, prev_time) = other_path[i];
+      std::tie(next_point, next_velocity, next_time) = other_path[i + 1];
 
-      // check if temporal constraint is satisfied
+      // 검사 구간이 우리 agent의 시간 [from_time, to_time]와 겹치는지 확인
       if (next_time <= from_time)
         continue;
       if (prev_time >= to_time)
         break;
 
-      // check if spatial constraint is satisfied
-      if (calculateDistance(from_point, prev_point) >= calculateDistance(from_point, to_point) + radius +
-                                                           calculateDistance(prev_point, next_point) +
-                                                           env.radii[occupied_agent_id] + env.epsilon)
-        continue;
-
-      // Calculate velocity for occupied_agent_id
-      const auto occupied_theta = atan2(next_point.y - prev_point.y, next_point.x - prev_point.x);
-      Velocity v2;
-      if (occupied_theta == 0.0)
-        v2 = Velocity(0.0, 0.0);
-      else
-        v2 = Velocity(env.max_velocities[occupied_agent_id] * cos(occupied_theta),
-                      env.max_velocities[occupied_agent_id] * sin(occupied_theta));
-
+      // 두 에이전트가 동시에 움직이는 시간 구간
       double start_time = std::max(from_time, prev_time);
       double end_time = std::min(to_time, next_time);
 
-      Point start_point1 =
-          Point(from_point.x + v1.x * (start_time - from_time), from_point.y + v1.y * (start_time - from_time));
-      Point start_point2 =
-          Point(prev_point.x + v2.x * (start_time - prev_time), prev_point.y + v2.y * (start_time - prev_time));
+      for (double t = start_time; t <= end_time; t += env.dt) {
+        // 우리 에이전트 (계획된 control 적용)
+        double our_elapsed = t - from_time;
+        double our_x, our_y, our_vx, our_vy;
+        std::tie(our_x, our_vx) = evaluateControlState(x_control, from_point.x, from_velocity.x, our_elapsed);
+        std::tie(our_y, our_vy) = evaluateControlState(y_control, from_point.y, from_velocity.y, our_elapsed);
 
-      double collision_t = TimeToCollision(
-          /* agent1 */ start_point1, radius, v1,
-          /* agent2 */ start_point2, other_radius, v2,
-          /* time */ start_time, end_time);
+        // 다른 에이전트
+        double other_elapsed = t - prev_time;
+        double other_x, other_y, other_vx, other_vy;
+        std::tie(other_x, other_vx) =
+            evaluateControlState(other_trajectory[i + 1].x_control, prev_point.x, prev_velocity.x, other_elapsed);
+        std::tie(other_y, other_vy) =
+            evaluateControlState(other_trajectory[i + 1].y_control, prev_point.y, prev_velocity.y, other_elapsed);
 
-      if (collision_t > 0.0) {
-        return true; // 충돌
+        // 두 에이전트의 위치 거리 계산
+        if (calculateDistance(our_x, our_y, other_x, other_y) < radius + other_radius + env.epsilon) {
+          return true;
+        }
       }
     }
   }
@@ -331,8 +331,8 @@ bool ConstraintTable::hardConstrained(int agent_id, const Point &from_point, con
   const double velocity_from2to = env.max_velocities[agent_id];
   for (auto [constrained_radius, constrained_path] : hard_constraint_table[agent_id]) {
     for (int i = 0; i < constrained_path.size() - 1; i++) {
-      auto [prev_point, prev_time] = constrained_path[i];
-      auto [next_point, next_time] = constrained_path[i + 1];
+      auto [prev_point, prev_velocity, prev_time] = constrained_path[i];
+      auto [next_point, next_velocity, next_time] = constrained_path[i + 1];
 
       // check if temporal constraint is satisfied
       if (next_time <= from_time)
@@ -386,213 +386,98 @@ bool ConstraintTable::hardConstrained(int agent_id, const Point &from_point, con
   return false;
 }
 
-// THIS FUNCTION IS FOR PRIORITIZED PLANNING
-// void ConstraintTable::getSafeIntervalTablePath(int agent_id, const Point &to_point, double radius,
-//                                                vector<Interval> &safe_intervals) const {
-//   assert(safe_intervals.empty());
-//   safe_intervals.emplace_back(0.0, numeric_limits<double>::infinity());
-//   for (auto occupied_agent_id = 0; occupied_agent_id < path_table.size(); ++occupied_agent_id) {
-//     if (occupied_agent_id == agent_id)
-//       continue;
-//     if (path_table[occupied_agent_id].empty())
-//       continue;
-//     // vertex-edge conflict
-//     bool is_safe = true;
-//     double collision_start_time = 0.0;
-//     for (int i = 0; i < path_table[occupied_agent_id].size() - 1; ++i) {
-//       auto [prev_point, prev_time] = path_table[occupied_agent_id][i];
-//       auto [next_point, next_time] = path_table[occupied_agent_id][i + 1];
-//
-//       vector<Point> interpolated_points;
-//       vector<double> interpolated_times;
-//       interpolatePointTime(occupied_agent_id, prev_point, next_point, prev_time, next_time, interpolated_points,
-//                            interpolated_times);
-//       for (int j = 0; j < interpolated_points.size(); ++j) {
-//         if (is_safe &&
-//             calculateDistance(to_point, interpolated_points[j]) < radius + env.radii[occupied_agent_id] +
-//             env.epsilon) {
-//           is_safe = false;
-//           collision_start_time = interpolated_times[j];
-//         } else if (!is_safe && calculateDistance(to_point, interpolated_points[j]) >=
-//                                    radius + env.radii[occupied_agent_id] + env.epsilon) {
-//           is_safe = true;
-//           assert(collision_start_time < interpolated_times[j]);
-//           insertCollisionIntervalToSIT(safe_intervals, collision_start_time, interpolated_times[j]);
-//           if (safe_intervals.empty())
-//             return;
-//         }
-//       }
-//     }
-//     if (!is_safe) {
-//       // target conflict
-//       insertCollisionIntervalToSIT(safe_intervals, collision_start_time, numeric_limits<double>::infinity());
-//       if (safe_intervals.empty())
-//         return;
-//     }
-//   }
-// }
-
-/**
- * @brief Given that agent_id is effectively "stationary" at to_point (with radius),
- *        compute the safe time intervals [0, +∞) \ collision times, i.e.,
- *        times at which the agent can be at 'to_point' without colliding
- *        with any segment of other agents' paths.
- *
- * @note This version does not do time-sampling interpolation; it uses
- *       continuous collision detection to find exact collision intervals.
- */
 void ConstraintTable::getSafeIntervalTablePath(int agent_id, const Point &to_point, double radius,
                                                std::vector<Interval> &safe_intervals) const {
-  // Start with a single safe interval [0, +∞)
+  // 1) 초기값: [0, ∞) 전부 "안전"
   assert(safe_intervals.empty());
   safe_intervals.emplace_back(0.0, std::numeric_limits<double>::infinity());
 
-  // Precompute environment's epsilon once if needed
-  double eps = env.epsilon;
-
-  for (int occupied_agent_id = 0; occupied_agent_id < (int)path_table.size(); ++occupied_agent_id) {
-    // Skip self or empty path
+  // 2) 다른 모든 에이전트에 대해 충돌 시간대 확인
+  for (int occupied_agent_id = 0; occupied_agent_id < static_cast<int>(path_table.size()); ++occupied_agent_id) {
+    // 자기 자신 / 빈 경로 스킵
     if (occupied_agent_id == agent_id)
       continue;
     if (path_table[occupied_agent_id].empty())
       continue;
 
-    // For convenience
     double other_radius = env.radii[occupied_agent_id];
-
-    // Go through each edge of the other agent's path
     const auto &other_path = path_table[occupied_agent_id];
-    for (int i = 0; i < (int)other_path.size() - 1; ++i) {
-      auto [prev_point, prev_time] = other_path[i];
-      auto [next_point, next_time] = other_path[i + 1];
-      if (next_time <= 0.0)
-        continue; // If next_time <= 0, collision would be before we even start. (If your times start at 0)
-      if (prev_time >= std::numeric_limits<double>::infinity())
-        break; // Unlikely, but just in case.
+    const auto &other_trajectory = trajectory_table[occupied_agent_id];
 
-      // If you want to skip intervals that don't overlap [0,∞):
-      if (prev_time > safe_intervals.back().second)
-        break; // No overlap with [0,∞)
+    // 2-1) 상대 에이전트 경로의 각 segment(prev -> next)에 대해
+    for (size_t i = 0; i < other_path.size() - 1; ++i) {
+      Point prev_point, next_point;
+      Velocity prev_velocity, next_velocity;
+      double prev_time, next_time;
+      std::tie(prev_point, prev_velocity, prev_time) = other_path[i];
+      std::tie(next_point, next_velocity, next_time) = other_path[i + 1];
 
-      // 1) We treat "to_point" (radius) as stationary circle, the other agent as moving circle.
-      //    We'll define local param tau in [0, segment_duration], where segment_duration = next_time - prev_time.
-      double segment_duration = next_time - prev_time;
-      if (segment_duration <= 1e-9)
-        continue; // No real motion or degenerate segment
+      // "충돌 on/off" 감지용
+      bool is_in_collision = false;
+      double collision_start = 0.0;
 
-      // 2) Shift coordinate so that agent_id's circle is at origin (0,0).
-      //    Then the other agent's initial center at tau=0 is w = (prev_point - to_point).
-      Point w(prev_point.x - to_point.x, prev_point.y - to_point.y);
-
-      // 3) Relative velocity v2 = (next_point - prev_point)/segment_duration
-      Velocity v2((next_point.x - prev_point.x) / segment_duration, (next_point.y - prev_point.y) / segment_duration);
-
-      // The combined radius
-      double combined_radius = radius + other_radius;
-
-      // 4) Solve the standard quadratic for circle-circle collision in *relative* motion:
-      //    dist^2( w + v2 * tau , 0 ) = (combined_radius)^2.
-      //
-      //    Let difference_v = v2 (since the "stationary" circle has velocity 0).
-      //    a = v2 . v2
-      //    b = w . v2
-      //    c = w . w - (combined_radius)^2
-      //    Then we find times 0 <= tau <= segment_duration that satisfy:
-      //        (w + v2*tau)^2 = (combined_radius)^2
-      //
-      Velocity difference_v = v2;
-      double a = difference_v.dot(difference_v);
-      double b = w.dot(difference_v);
-      double c = w.dot(w) - combined_radius * combined_radius;
-
-      // If c<0, the circles are already overlapping at tau=0
-      // We'll find if/when they exit.
-      // If c>0 but discriminant<0 => no collision at all.
-      double discr = b * b - a * c;
-      if (a < 1e-12) {
-        // Means the other agent segment is effectively zero velocity (or extremely small).
-        // Then the position is w for the entire segment => either always or never in collision.
-        if (w.x * w.x + w.y * w.y <= combined_radius * combined_radius) {
-          // Colliding entire [prev_time, next_time]
-          insertCollisionIntervalToSIT(safe_intervals, prev_time, next_time);
-          if (safe_intervals.empty())
-            return;
+      // (A) segment 내부를 일정 간격 dt로 나누어 시간 t를 증가시키며 위치 계산
+      for (double t = prev_time; t <= next_time + 1e-9; t += env.dt) {
+        // segment 끝 시간을 초과하지 않도록 clamp(옵션)
+        // (부동소수점 오차 방어용. t가 segment_end_time을 조금 넘을 수 있으므로)
+        if (t > next_time) {
+          t = next_time;
         }
-        // else no collision
-        continue;
-      }
 
-      // If discr < 0 => no real intersection times => no collision
-      if (discr < 0.0) {
-        // But if c < 0, we are in collision for all tau, but a>0 => check that scenario
-        if (c < 0) {
-          // c<0, a>0, discr<0 => circles are overlapping at all times in [0, segment_duration]
-          insertCollisionIntervalToSIT(safe_intervals, prev_time, next_time);
+        double elapsed = t - prev_time;
+
+        // (1) 상대 에이전트 위치 계산
+        double other_x, other_vx;
+        std::tie(other_x, other_vx) =
+            evaluateControlState(other_trajectory[i + 1].x_control, prev_point.x, prev_velocity.x, elapsed);
+
+        double other_y, other_vy;
+        std::tie(other_y, other_vy) =
+            evaluateControlState(other_trajectory[i + 1].y_control, prev_point.y, prev_velocity.y, elapsed);
+
+        // (2) 충돌 판정
+        double dist = calculateDistance(to_point.x, to_point.y, other_x, other_y);
+        bool collision_now = (dist < (radius + other_radius + env.epsilon));
+
+        // (3) on/off 충돌 구간 업데이트
+        if (!is_in_collision && collision_now) {
+          // 새로 충돌 시작
+          is_in_collision = true;
+          collision_start = t;
+        } else if (is_in_collision && !collision_now) {
+          // 충돌 끝
+          insertCollisionIntervalToSIT(safe_intervals, collision_start, t);
           if (safe_intervals.empty())
-            return;
+            return; // 전부 막힘
+          is_in_collision = false;
         }
-        continue;
+
+        // 혹시 t가 segment_end_time에 도달했다면 조기 종료
+        if (t >= next_time) {
+          break;
+        }
       }
 
-      // We have two solutions: tau1 <= tau2
-      double sqrt_discr = std::sqrt(discr);
-      double tau1 = (-b - sqrt_discr) / a;
-      double tau2 = (-b + sqrt_discr) / a;
-      if (tau1 > tau2)
-        std::swap(tau1, tau2);
-
-      // If c < 0 => we start inside collision => collision starts at tau=0 and possibly ends at tau2
-      // Otherwise, collision starts at tau1 and ends at tau2 (if they overlap [0,segment_duration]).
-      double coll_start = 0.0, coll_end = 0.0;
-
-      if (c < 0.0) {
-        // Already colliding at tau=0
-        coll_start = 0.0;
-        coll_end = tau2; // we might leave collision at tau2
-      } else {
-        // collision enters at tau1, leaves at tau2
-        coll_start = tau1;
-        coll_end = tau2;
+      // (B) segment 끝까지 충돌이 이어졌다면 [collision_start, segment_end_time]
+      if (is_in_collision) {
+        insertCollisionIntervalToSIT(safe_intervals, collision_start, next_time);
+        if (safe_intervals.empty())
+          return; // 전부 막힘
+        is_in_collision = false;
       }
+    }
 
-      // We only care about collisions within [0, segment_duration]
-      if (coll_end < 0.0 || coll_start > segment_duration) {
-        // The collision times are entirely outside [0, segment_duration]
-        continue;
-      }
-      // Clamp to [0, segment_duration]
-      coll_start = std::max(coll_start, 0.0);
-      coll_end = std::min(coll_end, segment_duration);
-      if (coll_end <= coll_start)
-        continue; // no intersection or degenerate
-
-      // Convert local [coll_start, coll_end] to global times => [prev_time + coll_start, prev_time + coll_end].
-      double global_start = prev_time + coll_start;
-      double global_end = prev_time + coll_end;
-
-      // Insert that collision interval into SIT
-      insertCollisionIntervalToSIT(safe_intervals, global_start, global_end);
-      if (safe_intervals.empty())
-        return;
-    } // end for each path segment
-
-    // Finally, handle "target conflict" style:
-    // If the other agent stays at last_point after last_time,
-    // check if that last_point is within combined_radius => collision from [last_time, ∞).
-    auto [final_point, final_time] = other_path.back();
-    double dx = final_point.x - to_point.x;
-    double dy = final_point.y - to_point.y;
-    double dist2 = dx * dx + dy * dy;
-    double combined_radius = radius + other_radius + eps;
-    if (dist2 <= combined_radius * combined_radius) {
-      // Collides from [final_time, +∞)
+    // 2-2) "마지막 점 이후" 영원히 정지 상태를 가정한 충돌 처리
+    const auto &[final_point, final_vel, final_time] = other_path.back();
+    double end_dist = calculateDistance(to_point.x, to_point.y, final_point.x, final_point.y);
+    if (end_dist < radius + other_radius + env.epsilon) {
       insertCollisionIntervalToSIT(safe_intervals, final_time, std::numeric_limits<double>::infinity());
       if (safe_intervals.empty())
         return;
     }
   }
 
-  // If we get here, safe_intervals are the times [0,∞) minus all collisions
+  // 여기까지 오면 safe_intervals에 유효 구간이 남아 있음
 }
 
 void ConstraintTable::getSafeIntervalTable(int agent_id, const Point &to_point, double radius,
@@ -603,13 +488,11 @@ void ConstraintTable::getSafeIntervalTable(int agent_id, const Point &to_point, 
     bool is_safe = true;
     double collision_start_time = 0.0;
     for (int i = 0; i < constrained_path.size() - 1; ++i) {
-      auto [prev_point, prev_time] = constrained_path[i];
-      auto [next_point, next_time] = constrained_path[i + 1];
+      auto [prev_point, prev_velocity, prev_time] = constrained_path[i];
+      auto [next_point, next_velocity, next_time] = constrained_path[i + 1];
 
       vector<Point> interpolated_points;
       vector<double> interpolated_times;
-      interpolatePointTime(agent_id, prev_point, next_point, prev_time, next_time, interpolated_points,
-                           interpolated_times);
       for (int j = 0; j < interpolated_points.size(); ++j) {
         if (is_safe &&
             calculateDistance(to_point, interpolated_points[j]) < radius + constrained_radius + env.epsilon) {
@@ -627,39 +510,69 @@ void ConstraintTable::getSafeIntervalTable(int agent_id, const Point &to_point, 
     }
 
     if (!is_safe) {
-      insertCollisionIntervalToSIT(safe_intervals, collision_start_time, get<1>(constrained_path.back()));
+      insertCollisionIntervalToSIT(safe_intervals, collision_start_time, get<2>(constrained_path.back()));
       if (safe_intervals.empty())
         return;
     }
   }
 }
 
-optional<double> ConstraintTable::getEarliestArrivalTime(int agent_id, const Point &from_point, const Point &to_point,
-                                                         double expand_time, double lower_bound, double upper_bound,
-                                                         double radius) const {
-  return lower_bound;
-  // double earliest_arrival_time = lower_bound;
-  // double a_max = env.a_max;
-  // while (earliest_arrival_time < upper_bound) {
-  //   if (env.algorithm == "pp") {
-  //     if (targetConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
-  //     earliest_arrival_time,
-  //                           radius))
-  //       return nullopt;
-  //     if (!pathConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
-  //     earliest_arrival_time,
-  //                          radius))
-  //       return earliest_arrival_time;
-  //   } else if (env.algorithm == "cbs") {
-  //     if (!hardConstrained(agent_id, from_point, to_point, earliest_arrival_time - expand_time,
-  //     earliest_arrival_time,
-  //                          radius))
-  //       return earliest_arrival_time;
-  //   }
-  //   a_max -= 0.1;
-  //   earliest_arrival_time = calculateCostToGo(from_point, to_point, a_max);
-  // }
-  // return nullopt;
+optional<XYControl> ConstraintTable::getEarliestArrivalControl(int agent_id,                  // 에이전트 ID
+                                                               const Point &from_point,       // 출발점
+                                                               const Point &to_point,         // 도착점
+                                                               const Velocity &from_velocity, // 출발 속도
+                                                               const Velocity &to_velocity,   // 도착 속도
+                                                               double from_time,              // 출발 시간
+                                                               double arrival_lower_bound,    // 도착 시간 하한
+                                                               double arrival_upper_bound,    // 도착 시간 상한
+                                                               double radius) const {
+
+  // 가속도를 점점 낮추면서 찾기
+  // 가속도를 계속 낮추다가 만약 도착 시간이 arrival_upper_bound를 넘어가면 실패로 간주
+  // 가속도를 계속 낮추다가 만약 도착 시간이 arrival_lower_bound를 넘어가고 충돌이 없으면 성공
+  double acc_decrement = 0.1;
+  double current_a_max = env.a_max;
+  while (true) {
+    auto cost_with_controls =
+        calculateControls(from_point, to_point, from_velocity, to_velocity, env.v_max, current_a_max);
+    current_a_max -= acc_decrement;
+    if (current_a_max < 0.0)
+      return nullopt;
+    if (!cost_with_controls)
+      continue;
+
+    auto [control_x, control_y] = std::move(*cost_with_controls);
+
+    double moving_time =
+        control_x->control_first.second + control_x->control_const.second + control_x->control_last.second;
+
+    double arrival_time = from_time + moving_time;
+
+    // Check if the agent can reach the target within the time limit
+    if (arrival_time < arrival_lower_bound)
+      continue;
+    if (arrival_time >= arrival_upper_bound)
+      return nullopt;
+
+    // Check if the agent is constrained by obstacles
+    if (env.algorithm == "pp") {
+      // Check if the agent is constrained by obstacles
+      if (obstacleConstrained(agent_id, from_point, from_velocity, from_time, arrival_time, *control_x, *control_y,
+                              radius))
+        return nullopt;
+      // Check if the agent is constrained by other agents' paths
+      if (targetConstrained(agent_id, from_point, from_velocity, from_time, arrival_time, *control_x, *control_y,
+                            radius))
+        return nullopt;
+      if (!pathConstrained(agent_id, from_point, from_velocity, from_time, arrival_time, *control_x, *control_y,
+                           radius))
+        return XYControl(*control_x, *control_y);
+    } else if (env.algorithm == "cbs") {
+      if (!hardConstrained(agent_id, from_point, to_point, from_time, arrival_time, radius))
+        return XYControl(*control_x, *control_y);
+    }
+  }
+  return nullopt;
 }
 
 void ConstraintTable::insertCollisionIntervalToSIT(vector<Interval> &safe_intervals, double t_min, double t_max) const {
@@ -697,148 +610,107 @@ void ConstraintTable::insertCollisionIntervalToSIT(vector<Interval> &safe_interv
   }
 }
 
-void ConstraintTable::interpolatePoint(int agent_id, const Point &from_point, const Point &to_point,
-                                       vector<Point> &interpolated_points) const {
-  // const double velocity = calculateDistance(from_point, to_point) / env.edge_moving_time;
-  const double velocity = env.max_velocities[agent_id];
-  const double theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-
-  double elapsed_time = 0.0;
-  while (elapsed_time < calculateDistance(from_point, to_point) / velocity) {
-    Point interpolated_point = from_point;
-    if (theta != 0.0) {
-      interpolated_point = Point(from_point.x + velocity * cos(theta) * elapsed_time,
-                                 from_point.y + velocity * sin(theta) * elapsed_time);
-    }
-    interpolated_points.emplace_back(interpolated_point);
-    elapsed_time += env.check_time_resolution;
-  }
-  interpolated_points.emplace_back(to_point);
-
-  assert(!interpolated_points.empty());
-}
-
-void ConstraintTable::interpolatePointTime(int agent_id, const Point &from_point, const Point &to_point,
-                                           double from_time, double to_time, vector<Point> &interpolated_points,
-                                           vector<double> &interpolated_times) const {
-  assert(from_time < to_time);
-  // const double velocity = calculateDistance(from_point, to_point) / env.edge_moving_time;
-  const double velocity = env.max_velocities[agent_id];
-  const double theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-
-  double elapsed_time = 0.0;
-  while (elapsed_time < calculateDistance(from_point, to_point) / velocity) {
-    Point interpolated_point = from_point;
-    if (theta != 0.0) {
-      interpolated_point = Point(from_point.x + velocity * cos(theta) * elapsed_time,
-                                 from_point.y + velocity * sin(theta) * elapsed_time);
-    }
-    interpolated_points.emplace_back(interpolated_point);
-    interpolated_times.emplace_back(from_time + elapsed_time);
-    elapsed_time += env.check_time_resolution;
-  }
-  interpolated_points.emplace_back(to_point);
-  interpolated_times.emplace_back(to_time);
-
-  assert(!interpolated_points.empty());
-  assert(interpolated_points.size() == interpolated_times.size());
-}
-
-bool ConstraintTable::checkConflicts(const Solution &solution) const {
-  for (int agent1_id = 0; agent1_id < solution.size(); ++agent1_id) {
-    for (int i = 0; i < solution[agent1_id].size() - 1; ++i) {
-      auto [from_point, from_time] = solution[agent1_id][i];
-      auto [to_point, to_time] = solution[agent1_id][i + 1];
-      vector<Point> interpolated_points;
-      vector<double> interpolated_times;
-      interpolatePointTime(agent1_id, from_point, to_point, from_time, to_time, interpolated_points,
-                           interpolated_times);
-
-      for (auto agent2_id = 0; agent2_id < solution.size(); ++agent2_id) {
-        if (agent1_id == agent2_id)
-          continue;
-        // path conflict
-        for (int j = 0; j < solution[agent2_id].size() - 1; ++j) {
-          auto [prev_point, prev_time] = solution[agent2_id][j];
-          auto [next_point, next_time] = solution[agent2_id][j + 1];
-
-          // check if temporal constraint is satisfied
-          if (next_time <= from_time)
-            continue;
-          if (prev_time >= to_time)
-            break;
-          // check if spatial constraint is satisfied
-          if (calculateDistance(from_point, prev_point) >=
-              calculateDistance(from_point, to_point) + env.radii[agent1_id] +
-                  calculateDistance(prev_point, next_point) + env.radii[agent2_id] + env.epsilon)
-            continue;
-
-          double start_time = max(from_time, prev_time);
-          double end_time = min(to_time, next_time);
-
-          auto curr_time = start_time;
-          while (curr_time <= end_time) {
-            // get point at start_time
-            const auto occupied_moving_time = curr_time - prev_time;
-            assert(occupied_moving_time >= 0.0);
-            const auto occupied_theta = atan2(next_point.y - prev_point.y, next_point.x - prev_point.x);
-
-            auto occupied_point = prev_point;
-            if (occupied_theta != 0.0) {
-              occupied_point =
-                  Point(prev_point.x + env.max_velocities[agent2_id] * cos(occupied_theta) * occupied_moving_time,
-                        prev_point.y + env.max_velocities[agent2_id] * sin(occupied_theta) * occupied_moving_time);
-            }
-
-            // get point2 at start_time
-            const auto moving_time = curr_time - from_time;
-            assert(moving_time >= 0.0);
-            const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
-
-            auto point = from_point;
-            if (theta != 0.0) {
-              point = Point(from_point.x + env.max_velocities[agent1_id] * cos(theta) * moving_time,
-                            from_point.y + env.max_velocities[agent1_id] * sin(theta) * moving_time);
-            }
-
-            if (calculateDistance(point, occupied_point) < env.radii[agent1_id] + env.radii[agent2_id]) {
-              // cout << "Agent " << agent1_id << " and Agent " << agent2_id << " have a conflict at time " << curr_time
-              //      << endl;
-              // cout << "From: (" << get<0>(from_point) << ", " << get<1>(from_point) << "), t: " << from_time << endl;
-              // cout << "To: (" << get<0>(to_point) << ", " << get<1>(to_point) << "), t: " << to_time << endl;
-              // cout << "FTPoint: (" << get<0>(point) << ", " << get<1>(point) << ")" << endl;
-              // cout << "Prev: (" << get<0>(prev_point) << ", " << get<1>(prev_point) << "), t: " << prev_time << endl;
-              // cout << "Next: (" << get<0>(next_point) << ", " << get<1>(next_point) << "), t: " << next_time << endl;
-              // cout << "PNPoint: (" << get<0>(occupied_point) << ", " << get<1>(occupied_point) << ")" << endl;
-              // cout << "Distance: " << calculateDistance(point, occupied_point) << endl;
-              return true;
-            }
-
-            curr_time += env.check_time_resolution;
-          }
-        }
-
-        // target conflict
-        auto [last_point, last_time] = solution[agent2_id].back();
-        if (last_time >= to_time)
-          continue;
-        if (calculateDistance(from_point, last_point) >=
-            env.radii[agent1_id] + calculateDistance(from_point, to_point) + env.radii[agent2_id] + env.epsilon)
-          continue;
-        for (int j = 0; j < interpolated_points.size(); ++j) {
-          if (last_time >= interpolated_times[j])
-            continue;
-          if (calculateDistance(last_point, interpolated_points[j]) < env.radii[agent1_id] + env.radii[agent2_id]) {
-            // cout << "Agent " << agent1_id << " and Agent " << agent2_id << " have a conflict at time "
-            //      << interpolated_times[j] << endl;
-            // cout << "Point: (" << get<0>(interpolated_points[j]) << ", " << get<1>(interpolated_points[j]) << ")"
-            //      << endl;
-            // cout << "Last Point: (" << get<0>(last_point) << ", " << get<1>(last_point) << ")" << endl;
-            return true;
-          }
-        }
-      }
-    }
-  }
-  return false;
-}
+// bool ConstraintTable::checkConflicts(const PathSolution &solution) const {
+//   for (int agent1_id = 0; agent1_id < solution.size(); ++agent1_id) {
+//     for (int i = 0; i < solution[agent1_id].size() - 1; ++i) {
+//       auto [from_point, from_velocity, from_time] = solution[agent1_id][i];
+//       auto [to_point, to_velocity, to_time] = solution[agent1_id][i + 1];
+//       vector<Point> interpolated_points;
+//       vector<double> interpolated_times;
+//       interpolatePointTime(agent1_id, from_point, to_point, from_time, to_time, interpolated_points,
+//                            interpolated_times);
+//
+//       for (auto agent2_id = 0; agent2_id < solution.size(); ++agent2_id) {
+//         if (agent1_id == agent2_id)
+//           continue;
+//         // path conflict
+//         for (int j = 0; j < solution[agent2_id].size() - 1; ++j) {
+//           auto [prev_point, prev_velocity, prev_time] = solution[agent2_id][j];
+//           auto [next_point, next_velocity, next_time] = solution[agent2_id][j + 1];
+//
+//           // check if temporal constraint is satisfied
+//           if (next_time <= from_time)
+//             continue;
+//           if (prev_time >= to_time)
+//             break;
+//           // check if spatial constraint is satisfied
+//           if (calculateDistance(from_point, prev_point) >=
+//               calculateDistance(from_point, to_point) + env.radii[agent1_id] +
+//                   calculateDistance(prev_point, next_point) + env.radii[agent2_id] + env.epsilon)
+//             continue;
+//
+//           double start_time = max(from_time, prev_time);
+//           double end_time = min(to_time, next_time);
+//
+//           auto curr_time = start_time;
+//           while (curr_time <= end_time) {
+//             // get point at start_time
+//             const auto occupied_moving_time = curr_time - prev_time;
+//             assert(occupied_moving_time >= 0.0);
+//             const auto occupied_theta = atan2(next_point.y - prev_point.y, next_point.x - prev_point.x);
+//
+//             auto occupied_point = prev_point;
+//             if (occupied_theta != 0.0) {
+//               occupied_point =
+//                   Point(prev_point.x + env.max_velocities[agent2_id] * cos(occupied_theta) * occupied_moving_time,
+//                         prev_point.y + env.max_velocities[agent2_id] * sin(occupied_theta) * occupied_moving_time);
+//             }
+//
+//             // get point2 at start_time
+//             const auto moving_time = curr_time - from_time;
+//             assert(moving_time >= 0.0);
+//             const auto theta = atan2(to_point.y - from_point.y, to_point.x - from_point.x);
+//
+//             auto point = from_point;
+//             if (theta != 0.0) {
+//               point = Point(from_point.x + env.max_velocities[agent1_id] * cos(theta) * moving_time,
+//                             from_point.y + env.max_velocities[agent1_id] * sin(theta) * moving_time);
+//             }
+//
+//             if (calculateDistance(point, occupied_point) < env.radii[agent1_id] + env.radii[agent2_id]) {
+//               // cout << "Agent " << agent1_id << " and Agent " << agent2_id << " have a conflict at time " <<
+//               curr_time
+//               //      << endl;
+//               // cout << "From: (" << get<0>(from_point) << ", " << get<1>(from_point) << "), t: " << from_time <<
+//               endl;
+//               // cout << "To: (" << get<0>(to_point) << ", " << get<1>(to_point) << "), t: " << to_time << endl;
+//               // cout << "FTPoint: (" << get<0>(point) << ", " << get<1>(point) << ")" << endl;
+//               // cout << "Prev: (" << get<0>(prev_point) << ", " << get<1>(prev_point) << "), t: " << prev_time <<
+//               endl;
+//               // cout << "Next: (" << get<0>(next_point) << ", " << get<1>(next_point) << "), t: " << next_time <<
+//               endl;
+//               // cout << "PNPoint: (" << get<0>(occupied_point) << ", " << get<1>(occupied_point) << ")" << endl;
+//               // cout << "Distance: " << calculateDistance(point, occupied_point) << endl;
+//               return true;
+//             }
+//
+//             curr_time += env.check_time_resolution;
+//           }
+//         }
+//
+//         // target conflict
+//         auto [last_point, last_velocity, last_time] = solution[agent2_id].back();
+//         if (last_time >= to_time)
+//           continue;
+//         if (calculateDistance(from_point, last_point) >=
+//             env.radii[agent1_id] + calculateDistance(from_point, to_point) + env.radii[agent2_id] + env.epsilon)
+//           continue;
+//         for (int j = 0; j < interpolated_points.size(); ++j) {
+//           if (last_time >= interpolated_times[j])
+//             continue;
+//           if (calculateDistance(last_point, interpolated_points[j]) < env.radii[agent1_id] + env.radii[agent2_id])
+//           {
+//             // cout << "Agent " << agent1_id << " and Agent " << agent2_id << " have a conflict at time "
+//             //      << interpolated_times[j] << endl;
+//             // cout << "Point: (" << get<0>(interpolated_points[j]) << ", " << get<1>(interpolated_points[j]) <<
+//             ")"
+//             //      << endl;
+//             // cout << "Last Point: (" << get<0>(last_point) << ", " << get<1>(last_point) << ")" << endl;
+//             return true;
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return false;
+// }

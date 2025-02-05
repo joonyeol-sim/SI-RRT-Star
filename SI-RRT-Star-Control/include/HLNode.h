@@ -5,7 +5,7 @@
 
 class HLNode {
 public:
-  Solution solution;
+  PathSolution solution;
   vector<Conflict> conflicts;
   vector<vector<Constraint>> constraint_table;
   double cost;

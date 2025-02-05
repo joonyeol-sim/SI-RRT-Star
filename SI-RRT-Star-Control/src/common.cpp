@@ -9,47 +9,8 @@ void openFile(ofstream &file, const string &filename) {
   }
 }
 
-void writePath(ofstream &file, const Path &path) {
-  for (const auto &point_time : path) {
-    const auto &point = get<0>(point_time);
-    double time = get<1>(point_time);
-    file << "(" << point.x << "," << point.y << "," << time << ")->";
-  }
-  file << endl;
-}
-
-void savePath(const Path &path, const string &filename) {
-  ofstream file;
-  openFile(file, filename);
-  if (!file.is_open())
-    return;
-
-  writePath(file, path);
-  file.close();
-
-  if (!fs::exists(filename)) {
-    cerr << "Failed to write file: " << filename << endl;
-  }
-}
-
-void saveSolution(const Solution &solution, const string &filename) {
-  ofstream file;
-  openFile(file, filename);
-  if (!file.is_open())
-    return;
-
-  for (size_t i = 0; i < solution.size(); ++i) {
-    file << "Agent " << i << ":";
-    writePath(file, solution[i]);
-  }
-  file.close();
-
-  if (!fs::exists(filename)) {
-    cerr << "Failed to write file: " << filename << endl;
-  }
-}
-
-void saveControlSolution(const std::vector<ControlPath> &control_solution, const string &filename) {
+void saveSolution(const PathSolution &path_solution, const TrajectorySolution &trajectory_solution,
+                  const string &filename) {
   ofstream file;
   openFile(file, filename);
   if (!file.is_open())
@@ -57,57 +18,63 @@ void saveControlSolution(const std::vector<ControlPath> &control_solution, const
 
   YAML::Emitter out;
   out << YAML::BeginMap;
-  out << YAML::Key << "control_solution" << YAML::Value << YAML::BeginSeq;
+  out << YAML::Key << "solution" << YAML::Value << YAML::BeginSeq;
 
-  // 각 ControlPath는 (x_controls, y_controls) 튜플임
-  for (const auto &control_path : control_solution) {
-    const auto &x_controls = std::get<0>(control_path);
-    const auto &y_controls = std::get<1>(control_path);
-
+  // 각 agent의 solution에 대해
+  for (size_t i = 0; i < path_solution.size(); ++i) {
     out << YAML::BeginMap;
+    out << YAML::Key << "agent" + to_string(i) << YAML::Value << YAML::BeginSeq;
 
-    // x_controls 기록
-    out << YAML::Key << "x_controls" << YAML::Value << YAML::BeginSeq;
-    for (const auto &control : x_controls) {
+    // 각 point와 control 정보를 함께 저장
+    for (size_t j = 0; j < path_solution[i].size(); ++j) {
       out << YAML::BeginMap;
 
-      out << YAML::Key << "control_first" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_first.first << YAML::Key << "t" << YAML::Value
-          << control.control_first.second << YAML::EndMap;
+      // point와 time 정보 저장
+      const auto &[point, velocity, time] = path_solution[i][j];
+      out << YAML::Key << "point" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "x" << YAML::Value
+          << point.x << YAML::Key << "y" << YAML::Value << point.y << YAML::EndMap;
+      out << YAML::Key << "velocity" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "x" << YAML::Value
+          << velocity.x << YAML::Key << "y" << YAML::Value << velocity.y << YAML::EndMap;
+      out << YAML::Key << "time" << YAML::Value << time;
 
-      out << YAML::Key << "control_const" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_const.first << YAML::Key << "t" << YAML::Value
-          << control.control_const.second << YAML::EndMap;
+      // control 정보 저장 (해당 지점에 대한 control이 있는 경우)
+      if (j < trajectory_solution[i].size()) {
+        const auto &xy_control = trajectory_solution[i][j];
 
-      out << YAML::Key << "control_last" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_last.first << YAML::Key << "t" << YAML::Value << control.control_last.second
-          << YAML::EndMap;
+        // x control
+        out << YAML::Key << "x_control" << YAML::Value << YAML::BeginMap;
+        out << YAML::Key << "control_first" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.x_control.control_first.first << YAML::Key << "t" << YAML::Value
+            << xy_control.x_control.control_first.second << YAML::EndMap;
+
+        out << YAML::Key << "control_const" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.x_control.control_const.first << YAML::Key << "t" << YAML::Value
+            << xy_control.x_control.control_const.second << YAML::EndMap;
+
+        out << YAML::Key << "control_last" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.x_control.control_last.first << YAML::Key << "t" << YAML::Value
+            << xy_control.x_control.control_last.second << YAML::EndMap;
+        out << YAML::EndMap;
+
+        // y control
+        out << YAML::Key << "y_control" << YAML::Value << YAML::BeginMap;
+        out << YAML::Key << "control_first" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.y_control.control_first.first << YAML::Key << "t" << YAML::Value
+            << xy_control.y_control.control_first.second << YAML::EndMap;
+
+        out << YAML::Key << "control_const" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.y_control.control_const.first << YAML::Key << "t" << YAML::Value
+            << xy_control.y_control.control_const.second << YAML::EndMap;
+
+        out << YAML::Key << "control_last" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
+            << YAML::Value << xy_control.y_control.control_last.first << YAML::Key << "t" << YAML::Value
+            << xy_control.y_control.control_last.second << YAML::EndMap;
+        out << YAML::EndMap;
+      }
 
       out << YAML::EndMap;
     }
     out << YAML::EndSeq;
-
-    // y_controls 기록
-    out << YAML::Key << "y_controls" << YAML::Value << YAML::BeginSeq;
-    for (const auto &control : y_controls) {
-      out << YAML::BeginMap;
-
-      out << YAML::Key << "control_first" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_first.first << YAML::Key << "t" << YAML::Value
-          << control.control_first.second << YAML::EndMap;
-
-      out << YAML::Key << "control_const" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_const.first << YAML::Key << "t" << YAML::Value
-          << control.control_const.second << YAML::EndMap;
-
-      out << YAML::Key << "control_last" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "a"
-          << YAML::Value << control.control_last.first << YAML::Key << "t" << YAML::Value << control.control_last.second
-          << YAML::EndMap;
-
-      out << YAML::EndMap;
-    }
-    out << YAML::EndSeq;
-
     out << YAML::EndMap;
   }
 
@@ -122,21 +89,8 @@ void saveControlSolution(const std::vector<ControlPath> &control_solution, const
   }
 }
 
-void saveData(double cost, double makespan, double duration, const string &filename) {
-  ofstream file;
-  openFile(file, filename);
-  if (!file.is_open())
-    return;
-
-  file << cost << "," << makespan << "," << duration << endl;
-  file.close();
-
-  if (!fs::exists(filename)) {
-    cerr << "Failed to write file: " << filename << endl;
-  }
-}
-
 double calculateDistance(Point point1, Point point2) { return hypot(point1.x - point2.x, point1.y - point2.y); }
+double calculateDistance(double x1, double y1, double x2, double y2) { return hypot(x1 - x2, y1 - y2); }
 
 std::optional<Control> findControlAccDec(double x1, double x2, double v1, double v2, double v_max, double a_max) {
   double A = a_max;
@@ -460,24 +414,26 @@ std::optional<Control> findConstControlDecAcc_T(double x1, double x2, double v1,
   return control;
 }
 
-std::optional<double> calculateCostToGo(const Point &start, const Point &goal, const Velocity &v_start,
-                                        const Velocity &v_goal, double v_max, double a_max) {
+std::optional<double> calculateCostToGo(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                                        const Velocity &to_velocity, double v_max, double a_max) {
 
   std::vector<double> time_candidates_x;
   std::vector<double> time_candidates_y;
 
-  if (auto control_x1 = findConstControlAccDec(start.x, goal.x, v_start.x, v_goal.x, v_max, a_max)) {
+  if (auto control_x1 =
+          findConstControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
     time_candidates_x.push_back(control_x1->control_first.second + control_x1->control_const.second +
                                 control_x1->control_last.second);
   }
-  if (auto control_x2 = findConstControlDecAcc(start.x, goal.x, v_start.x, v_goal.x, -v_max, a_max)) {
+  if (auto control_x2 =
+          findConstControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
     time_candidates_x.push_back(control_x2->control_first.second + control_x2->control_const.second +
                                 control_x2->control_last.second);
   }
-  if (auto control_x3 = findControlAccDec(start.x, goal.x, v_start.x, v_goal.x, v_max, a_max)) {
+  if (auto control_x3 = findControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
     time_candidates_x.push_back(control_x3->control_first.second + control_x3->control_last.second);
   }
-  if (auto control_x4 = findControlDecAcc(start.x, goal.x, v_start.x, v_goal.x, -v_max, a_max)) {
+  if (auto control_x4 = findControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
     time_candidates_x.push_back(control_x4->control_first.second + control_x4->control_last.second);
   }
 
@@ -485,18 +441,20 @@ std::optional<double> calculateCostToGo(const Point &start, const Point &goal, c
     return std::nullopt;
   double T_x = *std::min_element(time_candidates_x.begin(), time_candidates_x.end());
 
-  if (auto control_y1 = findConstControlAccDec(start.y, goal.y, v_start.y, v_goal.y, v_max, a_max)) {
+  if (auto control_y1 =
+          findConstControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
     time_candidates_y.push_back(control_y1->control_first.second + control_y1->control_const.second +
                                 control_y1->control_last.second);
   }
-  if (auto control_y2 = findConstControlDecAcc(start.y, goal.y, v_start.y, v_goal.y, -v_max, a_max)) {
+  if (auto control_y2 =
+          findConstControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
     time_candidates_y.push_back(control_y2->control_first.second + control_y2->control_const.second +
                                 control_y2->control_last.second);
   }
-  if (auto control_y3 = findControlAccDec(start.y, goal.y, v_start.y, v_goal.y, v_max, a_max)) {
+  if (auto control_y3 = findControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
     time_candidates_y.push_back(control_y3->control_first.second + control_y3->control_last.second);
   }
-  if (auto control_y4 = findControlDecAcc(start.y, goal.y, v_start.y, v_goal.y, -v_max, a_max)) {
+  if (auto control_y4 = findControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
     time_candidates_y.push_back(control_y4->control_first.second + control_y4->control_last.second);
   }
 
@@ -507,62 +465,70 @@ std::optional<double> calculateCostToGo(const Point &start, const Point &goal, c
   return std::max(T_x, T_y);
 }
 
-std::optional<std::tuple<double, std::unique_ptr<Control>, std::unique_ptr<Control>>>
-calculateCostToGoWithControls(const Point &start, const Point &goal, const Velocity &v_start, const Velocity &v_goal,
-                              double v_max, double a_max) {
+std::optional<std::tuple<std::unique_ptr<Control>, std::unique_ptr<Control>>>
+calculateControls(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                  const Velocity &to_velocity, double v_max, double a_max) {
   std::vector<std::tuple<double, std::unique_ptr<Control>>> x_controls;
   std::vector<std::tuple<double, std::unique_ptr<Control>>> y_controls;
 
   // Compute all possible controls for x direction
   // Type 1: Constant velocity phase with acceleration then deceleration (ACC-CONST-DEC)
-  if (auto control_acc_const_dec = findConstControlAccDec(start.x, goal.x, v_start.x, v_goal.x, v_max, a_max)) {
+  if (auto control_acc_const_dec =
+          findConstControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
     x_controls.emplace_back(control_acc_const_dec->control_first.second + control_acc_const_dec->control_const.second +
                                 control_acc_const_dec->control_last.second,
                             std::make_unique<Control>(*control_acc_const_dec));
   }
 
   // Type 2: Constant velocity phase with deceleration then acceleration (DEC-CONST-ACC)
-  if (auto control_dec_const_acc = findConstControlDecAcc(start.x, goal.x, v_start.x, v_goal.x, -v_max, a_max)) {
+  if (auto control_dec_const_acc =
+          findConstControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
     x_controls.emplace_back(control_dec_const_acc->control_first.second + control_dec_const_acc->control_const.second +
                                 control_dec_const_acc->control_last.second,
                             std::make_unique<Control>(*control_dec_const_acc));
   }
 
   // Type 3: Direct acceleration then deceleration (ACC-DEC)
-  if (auto control_acc_dec = findControlAccDec(start.x, goal.x, v_start.x, v_goal.x, v_max, a_max)) {
+  if (auto control_acc_dec =
+          findControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
     x_controls.emplace_back(control_acc_dec->control_first.second + control_acc_dec->control_last.second,
                             std::make_unique<Control>(*control_acc_dec));
   }
 
   // Type 4: Direct deceleration then acceleration (DEC-ACC)
-  if (auto control_dec_acc = findControlDecAcc(start.x, goal.x, v_start.x, v_goal.x, -v_max, a_max)) {
+  if (auto control_dec_acc =
+          findControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
     x_controls.emplace_back(control_dec_acc->control_first.second + control_dec_acc->control_last.second,
                             std::make_unique<Control>(*control_dec_acc));
   }
 
   // Compute all possible controls for y direction
   // Type 1: ACC-CONST-DEC
-  if (auto control_acc_const_dec = findConstControlAccDec(start.y, goal.y, v_start.y, v_goal.y, v_max, a_max)) {
+  if (auto control_acc_const_dec =
+          findConstControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
     y_controls.emplace_back(control_acc_const_dec->control_first.second + control_acc_const_dec->control_const.second +
                                 control_acc_const_dec->control_last.second,
                             std::make_unique<Control>(*control_acc_const_dec));
   }
 
   // Type 2: DEC-CONST-ACC
-  if (auto control_dec_const_acc = findConstControlDecAcc(start.y, goal.y, v_start.y, v_goal.y, -v_max, a_max)) {
+  if (auto control_dec_const_acc =
+          findConstControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
     y_controls.emplace_back(control_dec_const_acc->control_first.second + control_dec_const_acc->control_const.second +
                                 control_dec_const_acc->control_last.second,
                             std::make_unique<Control>(*control_dec_const_acc));
   }
 
   // Type 3: ACC-DEC
-  if (auto control_acc_dec = findControlAccDec(start.y, goal.y, v_start.y, v_goal.y, v_max, a_max)) {
+  if (auto control_acc_dec =
+          findControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
     y_controls.emplace_back(control_acc_dec->control_first.second + control_acc_dec->control_last.second,
                             std::make_unique<Control>(*control_acc_dec));
   }
 
   // Type 4: DEC-ACC
-  if (auto control_dec_acc = findControlDecAcc(start.y, goal.y, v_start.y, v_goal.y, -v_max, a_max)) {
+  if (auto control_dec_acc =
+          findControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
     y_controls.emplace_back(control_dec_acc->control_first.second + control_dec_acc->control_last.second,
                             std::make_unique<Control>(*control_dec_acc));
   }
@@ -600,19 +566,21 @@ calculateCostToGoWithControls(const Point &start, const Point &goal, const Veloc
     std::vector<std::unique_ptr<Control>> x_candidates;
 
     // Type 1: ACC-CONST-DEC with specified time
-    if (auto control = findConstControlAccDec_T(start.x, goal.x, v_start.x, v_goal.x, v_max, final_T)) {
+    if (auto control =
+            findConstControlAccDec_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, final_T)) {
       x_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 2: DEC-CONST-ACC with specified time
-    if (auto control = findConstControlDecAcc_T(start.x, goal.x, v_start.x, v_goal.x, -v_max, final_T)) {
+    if (auto control =
+            findConstControlDecAcc_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, final_T)) {
       x_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 3: ACC-DEC with specified time
-    if (auto control = findControlAccDec_T(start.x, goal.x, v_start.x, v_goal.x, v_max, final_T)) {
+    if (auto control = findControlAccDec_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, final_T)) {
       x_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 4: DEC-ACC with specified time
-    if (auto control = findControlDecAcc_T(start.x, goal.x, v_start.x, v_goal.x, -v_max, final_T)) {
+    if (auto control = findControlDecAcc_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, final_T)) {
       x_candidates.push_back(std::make_unique<Control>(*control));
     }
 
@@ -633,19 +601,21 @@ calculateCostToGoWithControls(const Point &start, const Point &goal, const Veloc
     std::vector<std::unique_ptr<Control>> y_candidates;
 
     // Type 1: ACC-CONST-DEC with specified time
-    if (auto control = findConstControlAccDec_T(start.y, goal.y, v_start.y, v_goal.y, v_max, final_T)) {
+    if (auto control =
+            findConstControlAccDec_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, final_T)) {
       y_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 2: DEC-CONST-ACC with specified time
-    if (auto control = findConstControlDecAcc_T(start.y, goal.y, v_start.y, v_goal.y, -v_max, final_T)) {
+    if (auto control =
+            findConstControlDecAcc_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, final_T)) {
       y_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 3: ACC-DEC with specified time
-    if (auto control = findControlAccDec_T(start.y, goal.y, v_start.y, v_goal.y, v_max, final_T)) {
+    if (auto control = findControlAccDec_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, final_T)) {
       y_candidates.push_back(std::make_unique<Control>(*control));
     }
     // Type 4: DEC-ACC with specified time
-    if (auto control = findControlDecAcc_T(start.y, goal.y, v_start.y, v_goal.y, -v_max, final_T)) {
+    if (auto control = findControlDecAcc_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, final_T)) {
       y_candidates.push_back(std::make_unique<Control>(*control));
     }
 
@@ -668,100 +638,109 @@ calculateCostToGoWithControls(const Point &start, const Point &goal, const Veloc
     final_y_control = std::move(std::get<1>(*best_y));
   }
 
-  // Validate final states before returning
-  auto compute_final_state = [](double x0, double v0, const Control *control) -> std::tuple<double, double, double> {
-    double x = x0;  // position
-    double v = v0;  // velocity
-    double t = 0.0; // time
+  return std::make_tuple(std::move(final_x_control), std::move(final_y_control));
+}
 
-    if (const auto *const_control = dynamic_cast<const Control *>(control)) {
-      // First phase
-      double t1 = const_control->control_first.second;
-      double a1 = const_control->control_first.first;
-      x += v0 * t1 + 0.5 * a1 * t1 * t1;
-      v += a1 * t1;
-      t += t1;
+std::optional<std::tuple<std::unique_ptr<Control>, std::unique_ptr<Control>>>
+calculateControlsWithT(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
+                       const Velocity &to_velocity, double v_max, double a_max, double T) {
+  std::vector<std::unique_ptr<Control>> x_candidates;
+  std::vector<std::unique_ptr<Control>> y_candidates;
 
-      // Constant velocity phase
-      t += const_control->control_const.second;
-      x += v * const_control->control_const.second;
+  // x축에 대해 T를 만족하는 모든 후보 계산
+  if (auto control = findConstControlAccDec_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, T)) {
+    x_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findConstControlDecAcc_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, T)) {
+    x_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findControlAccDec_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, T)) {
+    x_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findControlDecAcc_T(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, T)) {
+    x_candidates.push_back(std::make_unique<Control>(*control));
+  }
 
-      // Final phase
-      double t2 = const_control->control_last.second;
-      double a2 = const_control->control_last.first;
-      x += v * t2 + 0.5 * a2 * t2 * t2;
-      v += a2 * t2;
-      t += t2;
+  // y축에 대해 T를 만족하는 모든 후보 계산
+  if (auto control = findConstControlAccDec_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, T)) {
+    y_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findConstControlDecAcc_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, T)) {
+    y_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findControlAccDec_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, T)) {
+    y_candidates.push_back(std::make_unique<Control>(*control));
+  }
+  if (auto control = findControlDecAcc_T(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, T)) {
+    y_candidates.push_back(std::make_unique<Control>(*control));
+  }
 
-    } else if (const auto *basic_control = dynamic_cast<const Control *>(control)) {
-      // First phase
-      double t1 = basic_control->control_first.second;
-      double a1 = basic_control->control_first.first;
-      x += v0 * t1 + 0.5 * a1 * t1 * t1;
-      v += a1 * t1;
-      t += t1;
+  if (x_candidates.empty() || y_candidates.empty()) {
+    std::cerr << "Failed to generate control candidates for one or both axes with T = " << T << std::endl;
+    return std::nullopt;
+  }
 
-      // Second phase
-      double t2 = basic_control->control_last.second;
-      double a2 = basic_control->control_last.first;
-      x += v * t2 + 0.5 * a2 * t2 * t2;
-      v += a2 * t2;
-      t += t2;
-    }
-
-    return {x, v, t};
+  // helper lambda: Control 객체의 각 phase에서의 가속도의 절댓값 중 최댓값을 반환
+  auto get_max_acceleration = [](const Control *ctrl) -> double {
+    return std::max(
+        {std::abs(ctrl->control_first.first), std::abs(ctrl->control_const.first), std::abs(ctrl->control_last.first)});
   };
 
-  // Check x-axis
-  auto [x_pos, x_vel, x_time] = compute_final_state(start.x, v_start.x, final_x_control.get());
-  if (std::abs(x_pos - goal.x) > 1e-6 || std::abs(x_vel - v_goal.x) > 1e-6 || std::abs(x_time - final_T) > 1e-6) {
-    std::cerr << "X-axis validation failed:" << std::endl
-              << "Position error: " << std::abs(x_pos - goal.x) << std::endl
-              << "Velocity error: " << std::abs(x_vel - v_goal.x) << std::endl
-              << "Time error: " << std::abs(x_time - final_T) << std::endl;
-    return std::nullopt;
-  }
+  // x축 후보 중 최소 최대 가속도를 가지는 control 선택
+  auto min_acc_x =
+      std::min_element(x_candidates.begin(), x_candidates.end(),
+                       [&get_max_acceleration](const std::unique_ptr<Control> &a, const std::unique_ptr<Control> &b) {
+                         return get_max_acceleration(a.get()) < get_max_acceleration(b.get());
+                       });
+  // y축 후보 중 최소 최대 가속도를 가지는 control 선택
+  auto min_acc_y =
+      std::min_element(y_candidates.begin(), y_candidates.end(),
+                       [&get_max_acceleration](const std::unique_ptr<Control> &a, const std::unique_ptr<Control> &b) {
+                         return get_max_acceleration(a.get()) < get_max_acceleration(b.get());
+                       });
 
-  // Check y-axis
-  auto [y_pos, y_vel, y_time] = compute_final_state(start.y, v_start.y, final_y_control.get());
-  if (std::abs(y_pos - goal.y) > 1e-6 || std::abs(y_vel - v_goal.y) > 1e-6 || std::abs(y_time - final_T) > 1e-6) {
-    std::cerr << "Y-axis validation failed:" << std::endl
-              << "Position error: " << std::abs(y_pos - goal.y) << std::endl
-              << "Velocity error: " << std::abs(y_vel - v_goal.y) << std::endl
-              << "Time error: " << std::abs(y_time - final_T) << std::endl;
-    return std::nullopt;
-  }
+  std::unique_ptr<Control> final_x_control = std::move(*min_acc_x);
+  std::unique_ptr<Control> final_y_control = std::move(*min_acc_y);
 
-  return std::make_tuple(final_T, std::move(final_x_control), std::move(final_y_control));
+  return std::make_tuple(std::move(final_x_control), std::move(final_y_control));
 }
 
 /// @brief 단일 Control 객체를 적용하여, 주어진 축에서 시작 스테이트 (start_pos, start_velocity)로부터
 ///        최종 상태(위치, 속도, 총 소요시간)를 계산한다.
-std::tuple<double, double, double> computeFinalState(const Control &control, double start_pos, double start_velocity) {
-  double pos = start_pos;
-  double v = start_velocity;
-  double t_total = 0.0;
+std::tuple<double, double> evaluateControlState(const Control &control, double start_pos, double start_vel,
+                                                std::optional<double> t = std::nullopt) {
+  // t가 주어지지 않으면 전체 시간에 대한 최종 상태 계산
+  if (!t.has_value()) {
+    double t_total = control.control_first.second + control.control_const.second + control.control_last.second;
+    t = t_total;
+  }
 
-  // Phase 1: control_first
-  double t1 = control.control_first.second;
-  double a1 = control.control_first.first;
-  pos += v * t1 + 0.5 * a1 * t1 * t1;
-  v += a1 * t1;
-  t_total += t1;
+  double t1 = control.control_first.second;      // 가속 단계 시간
+  double a1 = control.control_first.first;       // 가속도
+  double t_const = control.control_const.second; // 등속 단계 시간
+  double t2 = control.control_last.second;       // 감속 단계 시간
 
-  // Phase 2: control_const (가속도가 0인 구간)
-  double t_const = control.control_const.second;
-  pos += v * t_const;
-  t_total += t_const;
-
-  // Phase 3: control_last
-  double t2 = control.control_last.second;
-  double a2 = control.control_last.first;
-  pos += v * t2 + 0.5 * a2 * t2 * t2;
-  v += a2 * t2;
-  t_total += t2;
-
-  return std::make_tuple(pos, v, t_total);
+  if (t.value() < t1) { // 가속 단계
+    double pos = start_pos + start_vel * t.value() + 0.5 * a1 * t.value() * t.value();
+    double vel = start_vel + a1 * t.value();
+    return {pos, vel};
+  } else if (t.value() < t1 + t_const) { // 등속 단계
+    double pos_phase1 = start_pos + start_vel * t1 + 0.5 * a1 * t1 * t1;
+    double vel_phase1 = start_vel + a1 * t1;
+    double dt = t.value() - t1;
+    double pos = pos_phase1 + vel_phase1 * dt;
+    double vel = vel_phase1;
+    return {pos, vel};
+  } else { // 감속 단계
+    double pos_phase1 = start_pos + start_vel * t1 + 0.5 * a1 * t1 * t1;
+    double vel_phase1 = start_vel + a1 * t1;
+    double pos_phase2 = pos_phase1 + vel_phase1 * t_const;
+    double vel_phase2 = vel_phase1;
+    double dt = t.value() - t1 - t_const;
+    double pos = pos_phase2 + vel_phase2 * dt + 0.5 * control.control_last.first * dt * dt;
+    double vel = vel_phase2 + control.control_last.first * dt;
+    return {pos, vel};
+  }
 }
 
 /// @brief 단일 Control 객체를 시작 스테이트 (from_pos, from_vel)에서 적용했을 때,
@@ -770,15 +749,14 @@ std::tuple<double, double, double> computeFinalState(const Control &control, dou
 ///        최종 계산된 위치, 속도, 소요시간은 출력 인자로 전달된다.
 void validateControl(const Control &control, double from_pos, double from_vel, double to_pos, double to_vel,
                      double tolerance) {
-  double final_pos, final_vel, t_total;
-  std::tie(final_pos, final_vel, t_total) = computeFinalState(control, from_pos, from_vel);
+  double final_pos, final_vel;
+  std::tie(final_pos, final_vel) = evaluateControlState(control, from_pos, from_vel);
   if (!(std::fabs(final_pos - to_pos) < tolerance && std::fabs(final_vel - to_vel) < tolerance)) {
     std::string error_msg = "Control validation failed:\n";
     error_msg += "  Computed final position = " + std::to_string(final_pos) +
                  ", goal position = " + std::to_string(to_pos) + "\n";
     error_msg += "  Computed final velocity = " + std::to_string(final_vel) +
                  ", goal velocity = " + std::to_string(to_vel) + "\n";
-    error_msg += "  Total time = " + std::to_string(t_total);
     throw std::runtime_error(error_msg);
   }
 }
@@ -787,47 +765,43 @@ void validateControl(const Control &control, double from_pos, double from_vel, d
 ///        시작 스테이트 (start)에서 도착 스테이트 (goal)로의 전이가 올바르게 이루어졌는지 검증한다.
 ///        각 축에 대해 벡터 내의 Control 객체들을 순차적으로 적용하여 최종 상태를 계산하고,
 ///        그 결과가 목표 상태와 허용 오차 tolerance 이하이면 올바른 것으로 판단한다.
-void validateControlPath(const ControlPath &cp, const Point &start_pos, const Velocity &start_vel,
-                         const Point &goal_pos, const Velocity goal_vel, double tolerance) {
+void validateTrajectory(const Trajectory &trajectory, const Point &start_pos, const Velocity &start_vel,
+                        const Point &goal_pos, const Velocity goal_vel, double tolerance) {
   // x축에 대해 누적 적용
   double current_x = start_pos.x;
   double current_vx = start_vel.x;
-  double total_time_x = 0.0;
-  for (const auto &ctrl : std::get<0>(cp)) {
-    double seg_final_x, seg_final_vx, seg_t;
-    std::tie(seg_final_x, seg_final_vx, seg_t) = computeFinalState(ctrl, current_x, current_vx);
+
+  // y축에 대해 누적 적용
+  double current_y = start_pos.y;
+  double current_vy = start_vel.y;
+
+  for (const auto &xy_control : trajectory) {
+    double seg_final_x, seg_final_vx;
+    std::tie(seg_final_x, seg_final_vx) = evaluateControlState(xy_control.x_control, current_x, current_vx);
     current_x = seg_final_x;
     current_vx = seg_final_vx;
-    total_time_x += seg_t;
+
+    double seg_final_y, seg_final_vy;
+    std::tie(seg_final_y, seg_final_vy) = evaluateControlState(xy_control.y_control, current_y, current_vy);
+    current_y = seg_final_y;
+    current_vy = seg_final_vy;
   }
+
   if (!(std::fabs(current_x - goal_pos.x) < tolerance && std::fabs(current_vx - goal_vel.x) < tolerance)) {
     std::string error_msg = "Control path validation failed for x-axis:\n";
     error_msg +=
         "  Computed final x = " + std::to_string(current_x) + ", goal x = " + std::to_string(goal_pos.x) + "\n";
     error_msg +=
         "  Computed final vx = " + std::to_string(current_vx) + ", goal vx = " + std::to_string(goal_vel.x) + "\n";
-    error_msg += "  Total time = " + std::to_string(total_time_x);
     throw std::runtime_error(error_msg);
   }
 
-  // y축에 대해 누적 적용
-  double current_y = start_pos.y;
-  double current_vy = start_vel.y;
-  double total_time_y = 0.0;
-  for (const auto &ctrl : std::get<1>(cp)) {
-    double seg_final_y, seg_final_vy, seg_t;
-    std::tie(seg_final_y, seg_final_vy, seg_t) = computeFinalState(ctrl, current_y, current_vy);
-    current_y = seg_final_y;
-    current_vy = seg_final_vy;
-    total_time_y += seg_t;
-  }
   if (!(std::fabs(current_y - goal_pos.y) < tolerance && std::fabs(current_vy - goal_vel.y) < tolerance)) {
     std::string error_msg = "Control path validation failed for y-axis:\n";
     error_msg +=
         "  Computed final y = " + std::to_string(current_y) + ", goal y = " + std::to_string(goal_pos.y) + "\n";
     error_msg +=
         "  Computed final vy = " + std::to_string(current_vy) + ", goal vy = " + std::to_string(goal_vel.y) + "\n";
-    error_msg += "  Total time = " + std::to_string(total_time_y);
     throw std::runtime_error(error_msg);
   }
 }
