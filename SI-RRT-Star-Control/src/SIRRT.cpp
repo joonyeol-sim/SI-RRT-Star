@@ -54,9 +54,9 @@ bool SIRRT::run() {
       }
     }
 
-    vector<shared_ptr<LLNode>> neighbors;
-    getNeighbors(random_point, random_velocity, neighbors);
-    assert(!neighbors.empty());
+    // vector<shared_ptr<LLNode>> neighbors;
+    // getNeighbors(random_point, random_velocity, neighbors);
+    // assert(!neighbors.empty());
     vector<shared_ptr<LLNode>> new_nodes = chooseParent(random_point, random_velocity, safe_interval_table, nodes);
     if (new_nodes.empty()) {
       continue;

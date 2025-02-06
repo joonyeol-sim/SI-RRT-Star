@@ -68,10 +68,10 @@ int main(int argc, char *argv[]) {
   vector<double> goal_sample_rates;
   for (int i = 0; i < num_of_agents; ++i) {
     radii.emplace_back(0.5 * 1.1);
-    max_expand_distances.emplace_back(10.0);
+    // max_expand_distances.emplace_back(10.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
-    iterations.emplace_back(500);
+    iterations.emplace_back(1000);
     goal_sample_rates.emplace_back(10.0);
   }
 

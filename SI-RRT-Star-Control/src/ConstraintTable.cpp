@@ -534,7 +534,7 @@ optional<XYControl> ConstraintTable::getEarliestArrivalControl(int agent_id,    
   // 가속도를 점점 낮추면서 찾기
   // 가속도를 계속 낮추다가 만약 도착 시간이 arrival_upper_bound를 넘어가면 실패로 간주
   // 가속도를 계속 낮추다가 만약 도착 시간이 arrival_lower_bound를 넘어가고 충돌이 없으면 성공
-  double acc_decrement = 0.1;
+  double acc_decrement = 0.01;
   double current_a_max = env.a_max;
   while (true) {
     auto cost_with_controls =
