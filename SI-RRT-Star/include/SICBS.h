@@ -39,11 +39,11 @@ public:
     }
   }
   ~SICBS() = default;
-  Solution run();
-  Solution getInitialSolution();
-  static double calculateCost(const Solution &solution);
-  void getConflicts(const Solution &solution, vector<Conflict> &conflicts) const;
-  void findConflicts(const Solution &solution, vector<Conflict> &conflicts) const;
+  PathSolution run();
+  PathSolution getInitialSolution();
+  static double calculateCost(const PathSolution &solution);
+  void getConflicts(const PathSolution &solution, vector<Conflict> &conflicts) const;
+  void findConflicts(const PathSolution &solution, vector<Conflict> &conflicts) const;
 };
 
 #endif // SICBS_H

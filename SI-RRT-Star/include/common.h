@@ -3,6 +3,7 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <Eigen/Core>
 #include <boost/functional/hash.hpp>
 #include <boost/heap/fibonacci_heap.hpp>
 #include <cmath>
@@ -14,6 +15,7 @@
 #include <string>
 #include <thread>
 #include <tuple>
+#include <unsupported/Eigen/Polynomials>
 #include <utility>
 #include <vector>
 
@@ -102,7 +104,7 @@ using Path = std::vector<std::tuple<Point, double>>;
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
 using Constraint = std::tuple<double, Path>;
-using Solution = std::vector<Path>;
+using PathSolution = std::vector<Path>;
 
 void openFile(ofstream &file, const string &filename);
 
@@ -110,7 +112,7 @@ void writePath(ofstream &file, const Path &path);
 
 void savePath(const Path &path, const string &filename);
 
-void saveSolution(const Solution &solution, const string &filename);
+void saveSolution(const PathSolution &solution, const string &filename);
 
 void saveData(double cost, double makespan, double duration, const string &filename);
 

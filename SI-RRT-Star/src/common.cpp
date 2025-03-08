@@ -32,7 +32,7 @@ void savePath(const Path &path, const string &filename) {
   }
 }
 
-void saveSolution(const Solution &solution, const string &filename) {
+void saveSolution(const PathSolution &solution, const string &filename) {
   ofstream file;
   openFile(file, filename);
   if (!file.is_open())

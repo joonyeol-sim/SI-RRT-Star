@@ -42,7 +42,7 @@ public:
   void interpolatePointTime(int agent_id, const Point &from_point, const Point &to_point, double from_time,
                             double to_time, vector<Point> &interpoate_points, vector<double> &interpoate_times) const;
 
-  bool checkConflicts(const Solution &solution) const;
+  bool checkConflicts(const PathSolution &solution) const;
 
   double TimeToCollision(const Point &start_point1, double radius1, Velocity &v1, const Point &start_point2,
                          double radius2, Velocity &v2, double from_time2, double to_time2) const;

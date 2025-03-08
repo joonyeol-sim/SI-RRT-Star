@@ -1,6 +1,6 @@
 #include "SICBS.h"
 
-Solution SICBS::run() {
+PathSolution SICBS::run() {
   HLNode root;
   root.constraint_table.resize(env.num_of_robots);
   root.solution = getInitialSolution();
@@ -88,8 +88,8 @@ Solution SICBS::run() {
   return {};
 }
 
-Solution SICBS::getInitialSolution() {
-  Solution solution(env.num_of_robots);
+PathSolution SICBS::getInitialSolution() {
+  PathSolution solution(env.num_of_robots);
   std::vector<std::thread> threads(env.num_of_robots);
 
   auto plan_path = [&](int agent_id) {
@@ -111,7 +111,7 @@ Solution SICBS::getInitialSolution() {
   return solution;
 }
 
-double SICBS::calculateCost(const Solution &solution) {
+double SICBS::calculateCost(const PathSolution &solution) {
   double cost = 0.0;
   for (const auto &path : solution) {
     cost += get<1>(path.back());
@@ -119,7 +119,7 @@ double SICBS::calculateCost(const Solution &solution) {
   return cost;
 }
 
-void SICBS::findConflicts(const Solution &solution, vector<Conflict> &conflicts) const {
+void SICBS::findConflicts(const PathSolution &solution, vector<Conflict> &conflicts) const {
   for (int agent1_id = 0; agent1_id < env.num_of_robots; ++agent1_id) {
     for (int agent2_id = agent1_id + 1; agent2_id < env.num_of_robots; ++agent2_id) {
       Path partial_path1 = {};

@@ -1,0 +1,878 @@
+solution:
+  - agent0:
+      - point: {x: 21.619080592257838, y: 5.5723561009527725}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 18.25287626070282, y: 12.391515105804654}
+        velocity: {x: 0, y: 0}
+        time: 7.386018686600722
+        x_control:
+          control_first: {a: -0.24681960995189722, t: 3.693009343300361}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.24681960995189722, t: 3.693009343300361}
+        y_control:
+          control_first: {a: 0.5, t: 3.693009343300361}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.693009343300361}
+  - agent1:
+      - point: {x: 18.260401252877763, y: 18.896254880490197}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 23.605311265472899, y: 35.98557730782111}
+        velocity: {x: 0, y: 0}
+        time: 11.692500990748186
+        x_control:
+          control_first: {a: 0.15638156618916127, t: 5.8462504953740932}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.15638156618916127, t: 5.8462504953740932}
+        y_control:
+          control_first: {a: 0.5, t: 5.8462504953740932}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 5.8462504953740932}
+  - agent2:
+      - point: {x: 14.184289863371244, y: 33.972635612133651}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 18.282289517960272, y: 36.787360973830417}
+        velocity: {x: 0, y: 0}
+        time: 5.7257311530242339
+        x_control:
+          control_first: {a: 0.5, t: 2.8628655765121169}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 2.8628655765121169}
+        y_control:
+          control_first: {a: 0.34342674462463363, t: 2.8628655765121169}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.34342674462463363, t: 2.8628655765121169}
+  - agent3:
+      - point: {x: 9.2552505896677708, y: 32.172261400244452}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 6.0672202174276864, y: 8.6669198535150382}
+        velocity: {x: 0, y: 0}
+        time: 13.835113848909803
+        x_control:
+          control_first: {a: -0.066621892751721479, t: 6.9175569244549013}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.066621892751721479, t: 6.9175569244549013}
+        y_control:
+          control_first: {a: -0.5, t: 6}
+          control_const: {a: 0, t: 1.8351138489098036}
+          control_last: {a: 0.5, t: 6}
+  - agent4:
+      - point: {x: 9.9993643976242232, y: 12.232541052869696}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 21.72408193083853, y: 19.337953405066663}
+        velocity: {x: 0, y: 0}
+        time: 9.6849233484687147
+        x_control:
+          control_first: {a: 0.5, t: 4.8424616742343574}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 4.8424616742343574}
+        y_control:
+          control_first: {a: 0.30300995875032533, t: 4.8424616742343574}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.30300995875032533, t: 4.8424616742343574}
+  - agent5:
+      - point: {x: 31.66097012433378, y: 8.5696581539158245}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 13.53950700054488, y: 25.715646697894417}
+        velocity: {x: -0.40010953365904739, y: 0.42275730551137425}
+        time: 11.293631186919825
+        x_control:
+          control_first: {a: -0.5, t: 6}
+          control_const: {a: 0, t: 0.093850254237919373}
+          control_last: {a: 0.5, t: 5.1997809326819056}
+        y_control:
+          control_first: {a: 0.46586029552002006, t: 6.1005538810719404}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.46586029552002006, t: 5.1930773058478845}
+      - point: {x: 12.275107646022223, y: 24.402605489176377}
+        velocity: {x: 0, y: 0}
+        time: 15.593725307036294
+        x_control:
+          control_first: {a: -0.14651637508551196, t: 0.78463813076439415}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.14651637508551196, t: 3.515455989352076}
+        y_control:
+          control_first: {a: -0.5, t: 2.5728043655696093}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 1.7272897545468608}
+  - agent6:
+      - point: {x: 20.295824343941366, y: 20.442145891283669}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 9.4622846980950186, y: 27.773739610938463}
+        velocity: {x: 0, y: 0}
+        time: 9.309582008166144
+        x_control:
+          control_first: {a: -0.5, t: 4.654791004083072}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.654791004083072}
+        y_control:
+          control_first: {a: 0.33837480451118196, t: 4.654791004083072}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.33837480451118196, t: 4.654791004083072}
+  - agent7:
+      - point: {x: 35.793641747876286, y: 26.422446897378585}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 6.1175924892306774, y: 29.053752196447459}
+        velocity: {x: -0.42051523847014183, y: -0.47346621106285552}
+        time: 15.109930297870122
+        x_control:
+          control_first: {a: -0.5, t: 6}
+          control_const: {a: 0, t: 3.9509607748104036}
+          control_last: {a: 0.5, t: 5.1589695230597163}
+        y_control:
+          control_first: {a: 0.11715130869017237, t: 5.5342185761629983}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.11715130869017237, t: 9.5757117217071226}
+      - point: {x: 6.3411796628453256, y: 28.535282669843308}
+        velocity: {x: 0, y: 0}
+        time: 17.740754593997963
+        x_control:
+          control_first: {a: 0.5, t: 1.735927386534063}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 0.89489690959377932}
+        y_control:
+          control_first: {a: 0.21262546066843621, t: 2.4287929482145882}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.21262546066843621, t: 0.20203134791325406}
+  - agent8:
+      - point: {x: 15.381954518116936, y: 7.45528237530743}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 10.655869981261439, y: 34.714754200274832}
+        velocity: {x: 0.35443054368917193, y: 0.34227632354075344}
+        time: 14.440988988459818
+        x_control:
+          control_first: {a: -0.143922135327884, t: 5.9891670723510337}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.143922135327884, t: 8.4518219161087842}
+        y_control:
+          control_first: {a: 0.5, t: 6}
+          control_const: {a: 0, t: 3.1255416355413255}
+          control_last: {a: -0.5, t: 5.3154473529184934}
+      - point: {x: 13.521288089479066, y: 36.506870391156774}
+        velocity: {x: 0, y: 0}
+        time: 18.62378538583441
+        x_control:
+          control_first: {a: 0.5, t: 1.7369676549981246}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 2.4458287423764684}
+        y_control:
+          control_first: {a: 0.27079372135041918, t: 1.4594110133237326}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.27079372135041918, t: 2.7233853840508608}
+  - agent9:
+      - point: {x: 24.895534710376719, y: 18.390993414787076}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 24.309880855201655, y: 19.826837027171919}
+        velocity: {x: -0.1798073422101063, y: 0.051782837195024523}
+        time: 3.2888082137452903
+        x_control:
+          control_first: {a: -0.13019608812202904, t: 2.3349292401684245}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.13019608812202904, t: 0.9538789735768658}
+        y_control:
+          control_first: {a: 0.5, t: 1.6961869440676696}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 1.5926212696776205}
+      - point: {x: 15.200877544609156, y: 24.938880755895369}
+        velocity: {x: 0, y: 0}
+        time: 11.480840851756078
+        x_control:
+          control_first: {a: -0.5, t: 3.9162089767952875}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.2758236612155001}
+        y_control:
+          control_first: {a: 0.29219362566435758, t: 4.0074058349859589}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.29219362566435758, t: 4.1846268030248277}
+  - agent10:
+      - point: {x: 24.220014901495709, y: 29.79736475064303}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 35.462682883307657, y: 33.467148505813689}
+        velocity: {x: 0, y: 0}
+        time: 9.4837410263300406
+        x_control:
+          control_first: {a: 0.5, t: 4.7418705131650203}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 4.7418705131650203}
+        y_control:
+          control_first: {a: 0.16320786850183275, t: 4.7418705131650203}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.16320786850183275, t: 4.7418705131650203}
+  - agent11:
+      - point: {x: 29.075488495119533, y: 17.651744094083273}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 29.228020991011011, y: 17.177830328539265}
+        velocity: {x: 0.1312177054176048, y: -0.22226222508338656}
+        time: 1.6015728344079876
+        x_control:
+          control_first: {a: 0.1268999633327989, t: 1.3177988022804279}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.1268999633327989, t: 0.28377403212755969}
+        y_control:
+          control_first: {a: -0.5, t: 1.0230486422873803}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 0.57852419212060724}
+      - point: {x: 17.581245416278993, y: 31.256563626877984}
+        velocity: {x: 0, y: 0}
+        time: 12.677422242466974
+        x_control:
+          control_first: {a: -0.4038040609739193, t: 5.7004016552284567}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.4038040609739193, t: 5.3754477528305307}
+        y_control:
+          control_first: {a: 0.5, t: 5.76018692911288}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 5.3156624789461073}
+  - agent12:
+      - point: {x: 36.308169842486684, y: 32.541358451040054}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 10.108304895769542, y: 21.263629166498461}
+        velocity: {x: 0, y: 0}
+        time: 16.233288315572381
+        x_control:
+          control_first: {a: -0.40000000000000002, t: 7.5}
+          control_const: {a: 0, t: 1.2332883155723815}
+          control_last: {a: 0.40000000000000002, t: 7.5}
+        y_control:
+          control_first: {a: -0.17118616094667463, t: 8.1166441577861903}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.17118616094667463, t: 8.1166441577861903}
+  - agent13:
+      - point: {x: 29.852105229541838, y: 28.667935877197674}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 32.938254388216272, y: 27.955949869421055}
+        velocity: {x: -0.25505547122478534, y: -0.33423103110450914}
+        time: 5.5310291469823882
+        x_control:
+          control_first: {a: 0.5, t: 2.5104591022664087}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.0205700447159796}
+        y_control:
+          control_first: {a: 0.075883893046069267, t: 0.5632617785430174}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.075883893046069267, t: 4.9677673684393708}
+      - point: {x: 30.301856272502409, y: 28.206461076497334}
+        velocity: {x: 0, y: 0}
+        time: 9.6697472262246755
+        x_control:
+          control_first: {a: -0.5, t: 1.8143035683963589}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 2.3244145108459295}
+        y_control:
+          control_first: {a: 0.24647425121753885, t: 2.7473832743098945}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.24647425121753885, t: 1.3913348049323937}
+  - agent14:
+      - point: {x: 25.209673799349357, y: 3.134110948834866}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 27.038244784013479, y: 4.6901775335140927}
+        velocity: {x: 0, y: 0}
+        time: 3.8247310856206576
+        x_control:
+          control_first: {a: 0.5, t: 1.9123655428103288}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 1.9123655428103288}
+        y_control:
+          control_first: {a: 0.42548706004023418, t: 1.9123655428103288}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.42548706004023418, t: 1.9123655428103288}
+  - agent15:
+      - point: {x: 32.283552308302681, y: 31.044289220518877}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 19.264078362203161, y: 34.051000863746289}
+        velocity: {x: -0.45970985910085232, y: -0.30661092548064151}
+        time: 9.3687510038087147
+        x_control:
+          control_first: {a: -0.5, t: 5.1440853610052093}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.2246656428035045}
+        y_control:
+          control_first: {a: 0.20763373951426756, t: 3.946029878987007}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.20763373951426756, t: 5.4227211248217078}
+      - point: {x: 11.340503748641083, y: 30.550510121321388}
+        velocity: {x: 0, y: 0}
+        time: 16.516503165822083
+        x_control:
+          control_first: {a: -0.5, t: 3.1141662219058324}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.0335859401075371}
+        y_control:
+          control_first: {a: -0.19758336869793228, t: 2.797973413942151}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.19758336869793228, t: 4.349778748071218}
+  - agent16:
+      - point: {x: 14.199140776012838, y: 36.629062941281674}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 11.196164102562559, y: 35.532548054401907}
+        velocity: {x: -0.45159336900789615, y: -0.16706645241828461}
+        time: 4.16191996915805
+        x_control:
+          control_first: {a: -0.5, t: 2.5325533535869211}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 1.6293666155711288}
+        y_control:
+          control_first: {a: -0.18179390287946329, t: 2.5404540868896408}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.18179390287946329, t: 1.6214658822684092}
+      - point: {x: 6.310038890760711, y: 13.058048564963018}
+        velocity: {x: 0, y: 0}
+        time: 17.328590627308987
+        x_control:
+          control_first: {a: -0.062857112799662843, t: 2.9911136305764692}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.062857112799662843, t: 10.175557027574468}
+        y_control:
+          control_first: {a: -0.5, t: 5.6658670951634305}
+          control_const: {a: 0, t: 1.5008035629875067}
+          control_last: {a: 0.5, t: 6}
+  - agent17:
+      - point: {x: 7.4551191192866213, y: 10.601976514000786}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 6.7505962611298047, y: 34.776510228442689}
+        velocity: {x: 0.38819726343653893, y: -0.027471228449070462}
+        time: 14.113371917842942
+        x_control:
+          control_first: {a: -0.078764556122723636, t: 4.59239692749669}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.078764556122723636, t: 9.5209749903462519}
+        y_control:
+          control_first: {a: 0.5, t: 6}
+          control_const: {a: 0, t: 2.0584294609448017}
+          control_last: {a: -0.5, t: 6.0549424568981411}
+      - point: {x: 9.3741296316289731, y: 33.937971720080228}
+        velocity: {x: 0, y: 0}
+        time: 18.048011660290168
+        x_control:
+          control_first: {a: 0.5, t: 1.5791226077870739}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 2.3555171346601518}
+        y_control:
+          control_first: {a: -0.20293359146337941, t: 1.8996346047012693}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.20293359146337941, t: 2.0350051377459564}
+  - agent18:
+      - point: {x: 35.990655449946694, y: 12.648609367415718}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 26.238773624476391, y: 11.430866053681433}
+        velocity: {x: 0, y: 0}
+        time: 8.832613124311651
+        x_control:
+          control_first: {a: -0.5, t: 4.4163065621558255}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.4163065621558255}
+        y_control:
+          control_first: {a: -0.062436324369402274, t: 4.4163065621558255}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.062436324369402274, t: 4.4163065621558255}
+  - agent19:
+      - point: {x: 8.3700612480019654, y: 6.5097143242037276}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 2.6279275201392882, y: 8.5041075130279111}
+        velocity: {x: 0, y: 0}
+        time: 6.777689121146043
+        x_control:
+          control_first: {a: -0.5, t: 3.3888445605730215}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 3.3888445605730215}
+        y_control:
+          control_first: {a: 0.17366307398474082, t: 3.3888445605730215}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.17366307398474082, t: 3.3888445605730215}
+  - agent20:
+      - point: {x: 15.032670198091282, y: 30.544876657998028}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 22.54653917280331, y: 37.764621933931188}
+        velocity: {x: 0, y: 0}
+        time: 7.7531252922738343
+        x_control:
+          control_first: {a: 0.5, t: 3.8765626461369171}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.8765626461369171}
+        y_control:
+          control_first: {a: 0.48042794599102384, t: 3.8765626461369171}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.48042794599102384, t: 3.8765626461369171}
+  - agent21:
+      - point: {x: 26.465047153370747, y: 30.038771185892703}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 13.990465696676178, y: 16.12892884925353}
+        velocity: {x: -0.22881182294891356, y: -0.061697458661575222}
+        time: 10.426922201339954
+        x_control:
+          control_first: {a: -0.41622709630035598, t: 5.4883252613441771}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.41622709630035598, t: 4.9385969399957768}
+        y_control:
+          control_first: {a: -0.5, t: 5.275158559331552}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 5.1517636420084019}
+      - point: {x: 6.2867132195591084, y: 22.906046350511645}
+        velocity: {x: 0, y: 0}
+        time: 17.915600047465453
+        x_control:
+          control_first: {a: -0.49027559482469762, t: 3.510988716195194}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.49027559482469762, t: 3.9776891299303037}
+        y_control:
+          control_first: {a: 0.5, t: 3.8060363817243243}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.6826414644011738}
+  - agent22:
+      - point: {x: 30.113680761761501, y: 13.475506866303679}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 12.568462651542488, y: 34.430367595308631}
+        velocity: {x: 0, y: 0}
+        time: 12.984953576334984
+        x_control:
+          control_first: {a: -0.41623439065785678, t: 6.4924767881674921}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.41623439065785678, t: 6.4924767881674921}
+        y_control:
+          control_first: {a: 0.5, t: 6}
+          control_const: {a: 0, t: 0.98495357633498415}
+          control_last: {a: -0.5, t: 6}
+  - agent23:
+      - point: {x: 6.2559570052475673, y: 23.805384853992198}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 16.793273973940479, y: 34.33967290507028}
+        velocity: {x: -0.25934671077326305, y: 0.44000289004991078}
+        time: 9.7293731728273514
+        x_control:
+          control_first: {a: 0.5, t: 4.6053398756404125}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 5.1240332971869389}
+        y_control:
+          control_first: {a: 0.3603658706952646, t: 5.4751812611743569}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.3603658706952646, t: 4.2541919116529945}
+      - point: {x: 18.630452906585031, y: 32.972201509907251}
+        velocity: {x: 0, y: 0}
+        time: 14.151336658341743
+        x_control:
+          control_first: {a: 0.5, t: 2.4703284535304584}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 1.9516350319839324}
+        y_control:
+          control_first: {a: -0.49860128091013722, t: 2.652218966663578}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.49860128091013722, t: 1.7697445188508132}
+  - agent24:
+      - point: {x: 2.4100115465544034, y: 13.461146122791302}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 5.9355091989021007, y: 14.005363862251576}
+        velocity: {x: 0.10033172789584854, y: 0.29911434846513729}
+        time: 5.1176551566799278
+        x_control:
+          control_first: {a: 0.5, t: 2.6591593062358125}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 2.4584958504441152}
+        y_control:
+          control_first: {a: -0.077727699977702833, t: 0.63471076701696072}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.077727699977702833, t: 4.4829443896629666}
+      - point: {x: 30.928358745320139, y: 32.491168944436197}
+        velocity: {x: 0, y: 0}
+        time: 19.251297034901764
+        x_control:
+          control_first: {a: 0.5, t: 5.7993365442083027}
+          control_const: {a: 0, t: 2.3343053340135347}
+          control_last: {a: -0.5, t: 6}
+        y_control:
+          control_first: {a: 0.32919457316918599, t: 6.612508546313042}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.32919457316918599, t: 7.5211333319087954}
+  - agent25:
+      - point: {x: 13.532821175596755, y: 25.700424991876826}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 15.610108424318673, y: 12.930678550575344}
+        velocity: {x: -0.24943416604068941, y: -0.43417110191889546}
+        time: 9.3133083448867922
+        x_control:
+          control_first: {a: 0.1540186324177121, t: 3.8469009558189233}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.1540186324177121, t: 5.4664073890678688}
+        y_control:
+          control_first: {a: -0.5, t: 5.0908252743622917}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.2224830705245004}
+      - point: {x: 20.402149949913344, y: 6.1699982696533802}
+        velocity: {x: 0, y: 0}
+        time: 16.043875597027185
+        x_control:
+          control_first: {a: 0.5, t: 3.6147177921108855}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.1158494600295068}
+        y_control:
+          control_first: {a: -0.47667738271186272, t: 2.9098696315474699}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.47667738271186272, t: 3.8206976205929228}
+  - agent26:
+      - point: {x: 2.9155019770498649, y: 29.980568353142317}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 3.9425883784087969, y: 30.585709577591622}
+        velocity: {x: 0.19399272138751733, y: 0.39225685433818058}
+        time: 2.5305341508686565
+        x_control:
+          control_first: {a: 0.5, t: 1.4592597968218455}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 1.0712743540468108}
+        y_control:
+          control_first: {a: 0.19268324315456495, t: 2.2831471150170213}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.19268324315456495, t: 0.24738703585163524}
+      - point: {x: 25.625107750059016, y: 19.548847130144534}
+        velocity: {x: 0, y: 0}
+        time: 16.786502398732843
+        x_control:
+          control_first: {a: 0.40000000000000002, t: 6.885493222197697}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.40000000000000002, t: 7.3704750256664902}
+        y_control:
+          control_first: {a: -0.27500969255294283, t: 7.8411532684390028}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.27500969255294283, t: 6.4148149794251843}
+  - agent27:
+      - point: {x: 30.955202248181077, y: 3.0499184977283567}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 37.249550244328056, y: 2.128535331870923}
+        velocity: {x: 0, y: 0}
+        time: 7.0961104817481404
+        x_control:
+          control_first: {a: 0.5, t: 3.5480552408740702}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 3.5480552408740702}
+        y_control:
+          control_first: {a: -0.07319131119072611, t: 3.5480552408740702}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.07319131119072611, t: 3.5480552408740702}
+  - agent28:
+      - point: {x: 8.9358697593620136, y: 29.704533880001932}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 7.2920007142348595, y: 27.751723232758195}
+        velocity: {x: -0.19595754213861316, y: -0.093854320121105228}
+        time: 3.7737247171668291
+        x_control:
+          control_first: {a: -0.36525713380595082, t: 2.1551083748853426}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.36525713380595082, t: 1.6186163422814865}
+        y_control:
+          control_first: {a: -0.5, t: 1.9807166787045198}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 1.7930080384623093}
+      - point: {x: 10.56723977038995, y: 20.216517452226956}
+        velocity: {x: 0.48925227833261875, y: 0.21069412008770971}
+        time: 11.798890145195301
+        x_control:
+          control_first: {a: 0.17257139883479017, t: 5.9978764101243662}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.17257139883479017, t: 2.0272890179041063}
+        y_control:
+          control_first: {a: -0.5, t: 3.7080342738054215}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 4.3171311542230519}
+      - point: {x: 11.063810354848059, y: 18.861064229650804}
+        velocity: {x: 0, y: 0}
+        time: 15.566733506618501
+        x_control:
+          control_first: {a: -0.20289017592308164, t: 3.0896288474255282}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.20289017592308164, t: 0.67821451399767074}
+        y_control:
+          control_first: {a: -0.5, t: 2.0946158007993092}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.5, t: 1.6732275606238898}
+  - agent29:
+      - point: {x: 32.119975269045518, y: 34.267244923661302}
+        velocity: {x: 0, y: 0}
+        time: 0
+        x_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+        y_control:
+          control_first: {a: 0, t: 0}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0, t: 0}
+      - point: {x: 31.432990824764055, y: 35.022363303436379}
+        velocity: {x: -0.36905663078158396, y: 0.39839274928167423}
+        time: 1.9070416593079347
+        x_control:
+          control_first: {a: -0.45149386740481101, t: 1.3622269687903894}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.45149386740481101, t: 0.54481469051754527}
+        y_control:
+          control_first: {a: 0.5, t: 1.3519135789356416}
+          control_const: {a: 0, t: 0}
+          control_last: {a: -0.5, t: 0.55512808037229311}
+      - point: {x: 22.55746618812104, y: 12.034123022669952}
+        velocity: {x: 0, y: 0}
+        time: 16.419479512353497
+        x_control:
+          control_first: {a: -0.1229657614865319, t: 5.7555709968874824}
+          control_const: {a: 0, t: 0}
+          control_last: {a: 0.1229657614865319, t: 8.75686685615808}
+        y_control:
+          control_first: {a: -0.5, t: 6.7967854985633487}
+          control_const: {a: 0, t: 1.7156523544822129}
+          control_last: {a: 0.5, t: 6}

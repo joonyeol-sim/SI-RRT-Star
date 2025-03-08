@@ -33,8 +33,9 @@ void saveSolution(const PathSolution &path_solution, const TrajectorySolution &t
       const auto &[point, velocity, time] = path_solution[i][j];
       out << YAML::Key << "point" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "x" << YAML::Value
           << point.x << YAML::Key << "y" << YAML::Value << point.y << YAML::EndMap;
-      out << YAML::Key << "velocity" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key << "x" << YAML::Value
-          << velocity.x << YAML::Key << "y" << YAML::Value << velocity.y << YAML::EndMap;
+      out << YAML::Key << "velocity" << YAML::Value << YAML::Flow << YAML::BeginMap << YAML::Key
+          << "linear_velocity: " << YAML::Value << velocity.linear_velocity << YAML::Key << "angular_velocity"
+          << YAML::Value << velocity.angular_velocity << YAML::EndMap;
       out << YAML::Key << "time" << YAML::Value << time;
 
       // control 정보 저장 (해당 지점에 대한 control이 있는 경우)
@@ -414,56 +415,57 @@ std::optional<Control> findConstControlDecAcc_T(double x1, double x2, double v1,
   return control;
 }
 
-std::optional<double> calculateCostToGo(const Point &from_point, const Point &to_point, const Velocity &from_velocity,
-                                        const Velocity &to_velocity, double v_max, double a_max) {
-
-  std::vector<double> time_candidates_x;
-  std::vector<double> time_candidates_y;
-
-  if (auto control_x1 =
-          findConstControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
-    time_candidates_x.push_back(control_x1->control_first.second + control_x1->control_const.second +
-                                control_x1->control_last.second);
-  }
-  if (auto control_x2 =
-          findConstControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
-    time_candidates_x.push_back(control_x2->control_first.second + control_x2->control_const.second +
-                                control_x2->control_last.second);
-  }
-  if (auto control_x3 = findControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
-    time_candidates_x.push_back(control_x3->control_first.second + control_x3->control_last.second);
-  }
-  if (auto control_x4 = findControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
-    time_candidates_x.push_back(control_x4->control_first.second + control_x4->control_last.second);
-  }
-
-  if (time_candidates_x.empty())
-    return std::nullopt;
-  double T_x = *std::min_element(time_candidates_x.begin(), time_candidates_x.end());
-
-  if (auto control_y1 =
-          findConstControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
-    time_candidates_y.push_back(control_y1->control_first.second + control_y1->control_const.second +
-                                control_y1->control_last.second);
-  }
-  if (auto control_y2 =
-          findConstControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
-    time_candidates_y.push_back(control_y2->control_first.second + control_y2->control_const.second +
-                                control_y2->control_last.second);
-  }
-  if (auto control_y3 = findControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
-    time_candidates_y.push_back(control_y3->control_first.second + control_y3->control_last.second);
-  }
-  if (auto control_y4 = findControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
-    time_candidates_y.push_back(control_y4->control_first.second + control_y4->control_last.second);
-  }
-
-  if (time_candidates_y.empty())
-    return std::nullopt;
-  double T_y = *std::min_element(time_candidates_y.begin(), time_candidates_y.end());
-
-  return std::max(T_x, T_y);
-}
+// std::optional<double> calculateCostToGo(const Point &from_point, const Point &to_point, const Velocity
+// &from_velocity,
+//                                         const Velocity &to_velocity, double v_max, double a_max) {
+//
+//   std::vector<double> time_candidates_x;
+//   std::vector<double> time_candidates_y;
+//
+//   if (auto control_x1 =
+//           findConstControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
+//     time_candidates_x.push_back(control_x1->control_first.second + control_x1->control_const.second +
+//                                 control_x1->control_last.second);
+//   }
+//   if (auto control_x2 =
+//           findConstControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
+//     time_candidates_x.push_back(control_x2->control_first.second + control_x2->control_const.second +
+//                                 control_x2->control_last.second);
+//   }
+//   if (auto control_x3 = findControlAccDec(from_point.x, to_point.x, from_velocity.x, to_velocity.x, v_max, a_max)) {
+//     time_candidates_x.push_back(control_x3->control_first.second + control_x3->control_last.second);
+//   }
+//   if (auto control_x4 = findControlDecAcc(from_point.x, to_point.x, from_velocity.x, to_velocity.x, -v_max, a_max)) {
+//     time_candidates_x.push_back(control_x4->control_first.second + control_x4->control_last.second);
+//   }
+//
+//   if (time_candidates_x.empty())
+//     return std::nullopt;
+//   double T_x = *std::min_element(time_candidates_x.begin(), time_candidates_x.end());
+//
+//   if (auto control_y1 =
+//           findConstControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
+//     time_candidates_y.push_back(control_y1->control_first.second + control_y1->control_const.second +
+//                                 control_y1->control_last.second);
+//   }
+//   if (auto control_y2 =
+//           findConstControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
+//     time_candidates_y.push_back(control_y2->control_first.second + control_y2->control_const.second +
+//                                 control_y2->control_last.second);
+//   }
+//   if (auto control_y3 = findControlAccDec(from_point.y, to_point.y, from_velocity.y, to_velocity.y, v_max, a_max)) {
+//     time_candidates_y.push_back(control_y3->control_first.second + control_y3->control_last.second);
+//   }
+//   if (auto control_y4 = findControlDecAcc(from_point.y, to_point.y, from_velocity.y, to_velocity.y, -v_max, a_max)) {
+//     time_candidates_y.push_back(control_y4->control_first.second + control_y4->control_last.second);
+//   }
+//
+//   if (time_candidates_y.empty())
+//     return std::nullopt;
+//   double T_y = *std::min_element(time_candidates_y.begin(), time_candidates_y.end());
+//
+//   return std::max(T_x, T_y);
+// }
 
 std::optional<std::tuple<std::unique_ptr<Control>, std::unique_ptr<Control>>>
 calculateControls(const Point &from_point, const Point &to_point, const Velocity &from_velocity,

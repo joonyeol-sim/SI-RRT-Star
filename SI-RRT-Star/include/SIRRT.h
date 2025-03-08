@@ -25,8 +25,8 @@ public:
   double best_arrival_time = numeric_limits<double>::infinity();
 
   SIRRT(int agent_id, SharedEnv &env, ConstraintTable &constraint_table)
-      : dis_width(env.radii[agent_id], env.width - env.radii[agent_id]),
-        dis_height(env.radii[agent_id], env.height - env.radii[agent_id]), dis_100(0.0, 100.0),
+      : dis_width(env.radii[agent_id] + env.radii[agent_id], env.width - env.radii[agent_id]),
+        dis_height(env.radii[agent_id] + env.radii[agent_id], env.height - env.radii[agent_id]), dis_100(0.0, 100.0),
         dis_velocity(-env.max_velocities[agent_id], env.max_velocities[agent_id]), env(env),
         constraint_table(constraint_table), agent_id(agent_id), start_point(env.start_points[agent_id]),
         goal_point(env.goal_points[agent_id]), start_velocity(Velocity(0.0, 0.0)), goal_velocity(Velocity(0.0, 0.0)) {}

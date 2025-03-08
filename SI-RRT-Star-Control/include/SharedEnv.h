@@ -16,7 +16,7 @@ public:
   int width;
   int height;
   double v_max = 1.0;
-  double a_max = 0.5;
+  double a_max = 0.1;
   double dt = 0.1;
   vector<double> radii;
   vector<Point> start_points;

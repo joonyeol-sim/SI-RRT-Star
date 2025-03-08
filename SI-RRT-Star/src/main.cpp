@@ -23,13 +23,18 @@ int main(int argc, char *argv[]) {
       algorithm = argv[i + 1];
     }
   }
-
-  string benchmarkPath = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
-                         robotnum + "_" + testnum + ".yaml";
-  string solutionPath = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
-                        robotnum + "_" + testnum + "_solution.txt";
-  string dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum +
-                    "_" + testnum + "_data.txt";
+  string benchmarkPath = "nakwon.yaml";
+  string solutionPath = "nakwon_solution.txt";
+  string dataPath = "nakwon_data.txt";
+  mapname = "RectEnv";
+  // string benchmarkPath = "benchmark/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_"
+  // +
+  //                        robotnum + "_" + testnum + ".yaml";
+  // string solutionPath = "solution/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" +
+  //                       robotnum + "_" + testnum + "_solution.txt";
+  // string dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum
+  // +
+  //                   "_" + testnum + "_data.txt";
   YAML::Node config = YAML::LoadFile(benchmarkPath);
 
   vector<shared_ptr<Obstacle>> obstacles;
@@ -78,7 +83,7 @@ int main(int argc, char *argv[]) {
   SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances,
                             max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
-  Solution solution;
+  PathSolution solution;
   auto start = std::chrono::high_resolution_clock::now();
   double sum_of_costs = 0.0;
   double makespan = 0.0;

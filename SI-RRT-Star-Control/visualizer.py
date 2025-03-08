@@ -377,7 +377,7 @@ def update(frame):
 ##############################################################################
 # 실제 애니메이션 실행
 ##############################################################################
-num_frames = int(max_time / interval) + 2  # 약간 여유
+num_frames = int(max_time / interval) + 2
 ani = animation.FuncAnimation(
     fig,
     update,
@@ -386,5 +386,7 @@ ani = animation.FuncAnimation(
     blit=True,
     interval=interval * 10,  # 밀리초(시각적으로 너무 빠르지 않도록 조절)
 )
+
+# ani.save("simulation.mp4", writer="ffmpeg", fps=60)
 
 plt.show()

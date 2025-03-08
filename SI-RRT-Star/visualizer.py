@@ -27,8 +27,10 @@ robotnum = args.robotnum
 testnum = args.testnum
 interval = args.interval
 
-benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
-solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
+# benchmarkPath = f"benchmark/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}.yaml"
+# solutionPath = f"solution/{mapname}_{obs}/agents{robotnum}/{mapname}_{obs}_{robotnum}_{testnum}_solution.txt"
+benchmarkPath = "nakwon.yaml"
+solutionPath = "nakwon_solution.txt"
 
 with open(benchmarkPath, "r") as f:
     data = yaml.load(f, Loader=yaml.FullLoader)

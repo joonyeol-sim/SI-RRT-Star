@@ -25,21 +25,30 @@ using namespace std;
 
 class Velocity {
 public:
-  double x, y;
+  double linear_velocity, angular_velocity; // linear velocity, angular velocity
 
-  explicit Velocity(const double vx = 0.0, const double vy = 0.0) : x(vx), y(vy) {}
+  explicit Velocity(const double v = 0.0, const double w = 0.0)
+      : linear_velocity(linear_velocity), angular_velocity(angular_velocity) {}
 
-  bool operator==(const Velocity &other) const { return x == other.x && y == other.y; }
+  bool operator==(const Velocity &other) const {
+    return linear_velocity == other.linear_velocity && angular_velocity == other.angular_velocity;
+  }
 
   bool operator!=(const Velocity &other) const { return !(*this == other); }
 
-  Velocity operator+(const Velocity &other) const { return Velocity(x + other.x, y + other.y); }
+  Velocity operator+(const Velocity &other) const {
+    return Velocity(linear_velocity + other.linear_velocity, angular_velocity + other.angular_velocity);
+  }
 
-  Velocity operator-(const Velocity &other) const { return Velocity(x - other.x, y - other.y); }
+  Velocity operator-(const Velocity &other) const {
+    return Velocity(linear_velocity - other.linear_velocity, angular_velocity - other.angular_velocity);
+  }
 
-  double dot(const Velocity &other) const { return x * other.x + y * other.y; }
+  double dot(const Velocity &other) const {
+    return linear_velocity * other.linear_velocity + angular_velocity * other.angular_velocity;
+  }
 
-  double length() const { return std::sqrt(x * x + y * y); }
+  double length() const { return std::sqrt(linear_velocity * linear_velocity + angular_velocity * angular_velocity); }
 };
 
 class Point {

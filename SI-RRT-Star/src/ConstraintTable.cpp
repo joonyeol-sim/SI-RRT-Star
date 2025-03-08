@@ -1,5 +1,56 @@
 #include "ConstraintTable.h"
 
+// double ConstraintTable::TimeToCollision(const Point &start_point1, double radius1, Velocity &v1,
+//                                         const Point &start_point2, double radius2, Velocity &v2, double start_time,
+//                                         double end_time) const {
+//   // 두 원의 충돌 반경 합
+//   double combined_radius = radius1 + radius2;
+//
+//   // 두 점의 차이 벡터 w
+//   Point w = start_point2 - start_point1;
+//   double c = w.dot(w) - combined_radius * combined_radius;
+//
+//   // 이미 충돌 중이면 시작 시간을 반환
+//   if (c < 0) {
+//     return start_time;
+//   }
+//
+//   // 두 로봇의 속도 차이
+//   Velocity diff = v1 - v2;
+//   double a = diff.dot(diff);
+//   double b = w.dot(diff);
+//
+//   // 상대 속도가 0이면 충돌이 발생하지 않거나 이미 충돌 상태
+//   if (std::fabs(a) < 1e-12) {
+//     return -1.0;
+//   }
+//
+//   // 2차 방정식: a*t^2 - 2*b*t + c = 0
+//   // 계수를 내림차순(높은 차수부터)으로 Eigen 벡터에 저장
+//   Eigen::VectorXd coeffs(3);
+//   coeffs << a, -2.0 * b, c;
+//
+//   // PolynomialSolver를 이용해 근 계산
+//   Eigen::PolynomialSolver<double, Eigen::Dynamic> solver;
+//   solver.compute(coeffs);
+//
+//   // 실수 근만 추출
+//   std::vector<double> real_roots;
+//   solver.realRoots(real_roots);
+//
+//   // 조건에 맞는 실수근 중 최소의 t를 선택
+//   double tau = -1.0;
+//   for (double t : real_roots) {
+//     if (t >= 0.0 && t <= end_time) {
+//       if (tau < 0.0 || t < tau) {
+//         tau = t;
+//       }
+//     }
+//   }
+//
+//   return tau;
+// }
+
 double ConstraintTable::TimeToCollision(const Point &start_point1, double radius1, Velocity &v1,
                                         const Point &start_point2, double radius2, Velocity &v2, double start_time,
                                         double end_time) const {
@@ -31,37 +82,6 @@ double ConstraintTable::TimeToCollision(const Point &start_point1, double radius
 
   return tau;
 }
-
-// double ConstraintTable::TimeToCollision(const Point &start_point1, double radius1, Velocity &v1,
-//                                         const Point &start_point2, double radius2, Velocity &v2, double start_time,
-//                                         double end_time) const {
-//   double c = (start_point2.x - start_point1.x) * (start_point2.x - start_point1.x) +
-//              (start_point2.y - start_point1.y) * (start_point2.y - start_point1.y) -
-//              (radius1 + radius2) * (radius1 + radius2);
-//
-//   if (c < 0) {
-//     // Agents are already colliding
-//     return start_time;
-//   }
-//
-//   double a = (v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y);
-//   double b = (start_point2.x - start_point1.x) * (v1.x - v2.x) + (start_point2.y - start_point1.y) * (v1.y - v2.y);
-//   double discr = b * b - a * c;
-//
-//   if (discr <= 0) {
-//     // No collision
-//     return -1.0;
-//   }
-//
-//   double tau = (b - std::sqrt(discr)) / a;
-//
-//   if (tau < 0 or tau > end_time) {
-//     // Collision occurs outside the time interval
-//     return -1.0;
-//   }
-//
-//   return tau;
-// }
 
 // 선분(에이전트 중심 경로) vs 원(장애물) 충돌 검사
 //  - A, B: 선분의 양 끝점
@@ -738,7 +758,7 @@ void ConstraintTable::interpolatePointTime(int agent_id, const Point &from_point
   assert(interpolated_points.size() == interpolated_times.size());
 }
 
-bool ConstraintTable::checkConflicts(const Solution &solution) const {
+bool ConstraintTable::checkConflicts(const PathSolution &solution) const {
   for (int agent1_id = 0; agent1_id < solution.size(); ++agent1_id) {
     for (int i = 0; i < solution[agent1_id].size() - 1; ++i) {
       auto [from_point, from_time] = solution[agent1_id][i];
