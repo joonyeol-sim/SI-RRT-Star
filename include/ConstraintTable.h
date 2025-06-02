@@ -4,47 +4,48 @@
 #include "SharedEnv.h"
 #include "common.h"
 
+template<int DIM = DEFAULT_DIM>
 class ConstraintTable {
 public:
-  vector<Path> path_table;
-  vector<vector<Constraint>> hard_constraint_table;
-  vector<vector<Constraint>> soft_constraint_table;
-  SharedEnv &env;
+  vector<Path<DIM>> path_table;
+  vector<vector<Constraint<DIM>>> hard_constraint_table;
+  vector<vector<Constraint<DIM>>> soft_constraint_table;
+  SharedEnv<DIM> &env;
 
-  ConstraintTable(SharedEnv &env)
+  explicit ConstraintTable(SharedEnv<DIM> &env)
       : env(env), path_table(env.num_of_robots), hard_constraint_table(env.num_of_robots),
         soft_constraint_table(env.num_of_robots) {}
 
-  bool obstacleConstrained(int agent_id, const Point &from_point, const Point &to_point, double radius) const;
+  bool obstacleConstrained(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double radius) const;
 
-  bool pathConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time, double to_time,
+  bool pathConstrained(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double from_time, double to_time,
                        double radius) const;
 
-  bool hardConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time, double to_time,
+  bool hardConstrained(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double from_time, double to_time,
                        double radius) const;
 
-  bool targetConstrained(int agent_id, const Point &from_point, const Point &to_point, double from_time, double to_time,
+  bool targetConstrained(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double from_time, double to_time,
                          double radius) const;
 
-  void getSafeIntervalTablePath(int agent_id, const Point &to_point, double radius,
+  void getSafeIntervalTablePath(int agent_id, const State<DIM> &to_state, double radius,
                                 vector<Interval> &safe_intervals) const;
 
-  void getSafeIntervalTable(int agent_id, const Point &to_point, double radius, vector<Interval> &safe_intervals) const;
+  void getSafeIntervalTable(int agent_id, const State<DIM> &to_state, double radius, vector<Interval> &safe_intervals) const;
 
-  double getEarliestArrivalTime(int agent_id, const Point &from_point, const Point &to_point, double expand_time,
+  double getEarliestArrivalTime(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double expand_time,
                                 double lower_bound, double upper_bound, double radius) const;
 
   void insertCollisionIntervalToSIT(vector<Interval> &safe_intervals, double t_min, double t_max) const;
 
-  void interpolatePoint(int agent_id, const Point &from_point, const Point &to_point,
-                        vector<Point> &interpoate_points) const;
+  void interpolateState(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state,
+                        vector<State<DIM>> &interpolated_states) const;
 
-  void interpolatePointTime(int agent_id, const Point &from_point, const Point &to_point, double from_time,
-                            double to_time, vector<Point> &interpoate_points, vector<double> &interpoate_times) const;
+  void interpolateStateTime(int agent_id, const State<DIM> &from_state, const State<DIM> &to_state, double from_time,
+                            double to_time, vector<State<DIM>> &interpolated_states, vector<double> &interpolated_times) const;
 
-  bool checkConflicts(const Solution &solution) const;
+  bool checkConflicts(const Solution<DIM> &solution) const;
 
-  double TimeToCollision(const Point &start_point1, double radius1, Velocity &v1, const Point &start_point2,
-                         double radius2, Velocity &v2, double from_time2, double to_time2) const;
+  double TimeToCollision(const State<DIM> &start_state1, double radius1, Velocity<DIM> &v1, const State<DIM> &start_state2,
+                         double radius2, Velocity<DIM> &v2, double from_time2, double to_time2) const;
 };
 #endif // CONSTRAINTTABLE_H

@@ -1,7 +1,8 @@
 #include "SICBS.h"
 
-Solution SICBS::run() {
-  HLNode root;
+template<int DIM>
+Solution<DIM> SICBS<DIM>::run() {
+  HLNode<DIM> root;
   root.constraint_table.resize(env.num_of_robots);
   root.solution = getInitialSolution();
   if (root.solution.empty()) {
@@ -32,18 +33,30 @@ Solution SICBS::run() {
     const auto partial_path1 = get<0>(get<2>(conflict));
     const auto partial_path2 = get<1>(get<2>(conflict));
     // cout << "Interval : " << get<1>(partial_path1.front()) << " ~ " << get<1>(partial_path1.back()) << endl;
-    // print partial path
+    // print partial path (n차원 지원)
     // cout << "partial path" << agent_ids[0] << " : ";
-    // for (const auto& state : partial_path1) {
-    //   cout << "(" << get<0>(get<0>(state)) << ", " << get<1>(get<0>(state)) << ", " << get<1>(state) << ")->";
+    // for (const auto& state_time : partial_path1) {
+    //   const auto& state = get<0>(state_time);
+    //   cout << "(";
+    //   for (int d = 0; d < DIM; ++d) {
+    //     cout << state[d];
+    //     if (d < DIM - 1) cout << ",";
+    //   }
+    //   cout << "," << get<1>(state_time) << ")->";
     // }
     // cout << endl;
     // cout << "partial path" << agent_ids[1] << " : ";
-    // for (const auto& state : partial_path2) {
-    //   cout << "(" << get<0>(get<0>(state)) << ", " << get<1>(get<0>(state)) << ", " << get<1>(state) << ")->";
+    // for (const auto& state_time : partial_path2) {
+    //   const auto& state = get<0>(state_time);
+    //   cout << "(";
+    //   for (int d = 0; d < DIM; ++d) {
+    //     cout << state[d];
+    //     if (d < DIM - 1) cout << ",";
+    //   }
+    //   cout << "," << get<1>(state_time) << ")->";
     // }
     // cout << endl;
-    vector<Path> partial_paths = {partial_path1, partial_path2};
+    vector<Path<DIM>> partial_paths = {partial_path1, partial_path2};
     for (int i = 0; i < agent_ids.size(); i++) {
       const int j = (i + 1) % 2;
 
@@ -54,10 +67,16 @@ Solution SICBS::run() {
       new_node.constraint_table[agent_ids[i]].emplace_back(env.radii[agent_ids[j]], partial_paths[j]);
       constraint_table.hard_constraint_table = new_node.constraint_table;
 
-      // print before path
+      // print before path (n차원 지원)
       // cout << "Before path" << agent_ids[i] << ": ";
-      // for (const auto& state : new_node.solution[agent_ids[i]]) {
-      //   cout << "(" << get<0>(get<0>(state)) << ", " << get<1>(get<0>(state)) << ", " << get<1>(state) << ")->";
+      // for (const auto& state_time : new_node.solution[agent_ids[i]]) {
+      //   const auto& state = get<0>(state_time);
+      //   cout << "(";
+      //   for (int d = 0; d < DIM; ++d) {
+      //     cout << state[d];
+      //     if (d < DIM - 1) cout << ",";
+      //   }
+      //   cout << "," << get<1>(state_time) << ")->";
       // }
       // cout << endl;
 
@@ -68,10 +87,16 @@ Solution SICBS::run() {
         continue;
       // constraint_table.updateSoftConstraint(i, new_node.solution[agent_ids[i]]);
 
-      // print after path
+      // print after path (n차원 지원)
       // cout << "After path" << agent_ids[i] << ": ";
-      // for (const auto& state : new_node.solution[agent_ids[i]]) {
-      //   cout << "(" << get<0>(get<0>(state)) << ", " << get<1>(get<0>(state)) << ", " << get<1>(state) << ")->";
+      // for (const auto& state_time : new_node.solution[agent_ids[i]]) {
+      //   const auto& state = get<0>(state_time);
+      //   cout << "(";
+      //   for (int d = 0; d < DIM; ++d) {
+      //     cout << state[d];
+      //     if (d < DIM - 1) cout << ",";
+      //   }
+      //   cout << "," << get<1>(state_time) << ")->";
       // }
       // cout << endl;
 
@@ -88,8 +113,9 @@ Solution SICBS::run() {
   return {};
 }
 
-Solution SICBS::getInitialSolution() {
-  Solution solution(env.num_of_robots);
+template<int DIM>
+Solution<DIM> SICBS<DIM>::getInitialSolution() {
+  Solution<DIM> solution(env.num_of_robots);
   std::vector<std::thread> threads(env.num_of_robots);
 
   auto plan_path = [&](int agent_id) {
@@ -111,7 +137,8 @@ Solution SICBS::getInitialSolution() {
   return solution;
 }
 
-double SICBS::calculateCost(const Solution &solution) {
+template<int DIM>
+double SICBS<DIM>::calculateCost(const Solution<DIM> &solution) {
   double cost = 0.0;
   for (const auto &path : solution) {
     cost += get<1>(path.back());
@@ -119,11 +146,12 @@ double SICBS::calculateCost(const Solution &solution) {
   return cost;
 }
 
-void SICBS::findConflicts(const Solution &solution, vector<Conflict> &conflicts) const {
+template<int DIM>
+void SICBS<DIM>::findConflicts(const Solution<DIM> &solution, vector<Conflict<DIM>> &conflicts) const {
   for (int agent1_id = 0; agent1_id < env.num_of_robots; ++agent1_id) {
     for (int agent2_id = agent1_id + 1; agent2_id < env.num_of_robots; ++agent2_id) {
-      Path partial_path1 = {};
-      Path partial_path2 = {};
+      Path<DIM> partial_path1 = {};
+      Path<DIM> partial_path2 = {};
 
       auto index1 = 0;
       auto index2 = 0;
@@ -169,18 +197,23 @@ void SICBS::findConflicts(const Solution &solution, vector<Conflict> &conflicts)
         assert(agent1_expand_time >= 0.0);
         assert(agent2_expand_time >= 0.0);
 
-        const auto agent1_theta = atan2(next_point1.y - prev_point1.y, next_point1.x - prev_point1.x);
-        const auto agent2_theta = atan2(next_point2.y - prev_point2.y, next_point2.x - prev_point2.x);
-
+        // n차원 방향 벡터 계산
+        Velocity<DIM> agent1_direction = toVelocity<DIM>(prev_point1, next_point1);
+        Velocity<DIM> agent2_direction = toVelocity<DIM>(prev_point2, next_point2);
+        
+        // 방향 벡터 정규화 및 최대 속도 적용
         auto agent1_point = prev_point1;
-        if (agent1_theta != 0.0) {
-          agent1_point = Point(prev_point1.x + env.max_velocities[agent1_id] * cos(agent1_theta) * agent1_expand_time,
-                               prev_point1.y + env.max_velocities[agent1_id] * sin(agent1_theta) * agent1_expand_time);
+        if (agent1_direction.length() > 0.0) {
+          Velocity<DIM> normalized_dir1 = agent1_direction.normalize();
+          Velocity<DIM> movement1 = normalized_dir1 * (env.max_velocities[agent1_id] * agent1_expand_time);
+          agent1_point = prev_point1 + toState<DIM>(movement1);
         }
+        
         auto agent2_point = prev_point2;
-        if (agent2_theta != 0.0) {
-          agent2_point = Point(prev_point2.x + env.max_velocities[agent2_id] * cos(agent2_theta) * agent2_expand_time,
-                               prev_point2.y + env.max_velocities[agent2_id] * sin(agent2_theta) * agent2_expand_time);
+        if (agent2_direction.length() > 0.0) {
+          Velocity<DIM> normalized_dir2 = agent2_direction.normalize();
+          Velocity<DIM> movement2 = normalized_dir2 * (env.max_velocities[agent2_id] * agent2_expand_time);
+          agent2_point = prev_point2 + toState<DIM>(movement2);
         }
 
         if (is_safe && calculateDistance(agent1_point, agent2_point) < env.radii[agent1_id] + env.radii[agent2_id]) {
@@ -207,3 +240,7 @@ void SICBS::findConflicts(const Solution &solution, vector<Conflict> &conflicts)
     }
   }
 }
+
+// 명시적 템플릿 인스턴스화
+template class SICBS<2>;
+template class SICBS<3>;

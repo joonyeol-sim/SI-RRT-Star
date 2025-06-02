@@ -3,6 +3,7 @@
 
 #include "common.h"
 
+template<int DIM = DEFAULT_DIM>
 class SharedEnv {
 public:
   vector<double> max_expand_distances;
@@ -13,67 +14,115 @@ public:
   vector<int> iterations;
   vector<double> goal_sample_rates;
   int num_of_robots;
-  int width;
-  int height;
+  std::array<int, DIM> bounds; // width, height, depth, etc.
   vector<double> radii;
-  vector<Point> start_points;
-  vector<Point> goal_points;
-  vector<shared_ptr<Obstacle>> obstacles;
-  // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  vector<State<DIM>> start_states;
+  vector<State<DIM>> goal_states;
+  vector<shared_ptr<Obstacle<DIM>>> obstacles;
   unsigned seed = 0;
   default_random_engine gen;
   string algorithm;
 
-  SharedEnv(int num_of_robots, int width, int height, const vector<Point> &start_points,
-            const vector<Point> &goal_points, const vector<double> &radii, const vector<double> &max_expand_distances,
+  // 생성자
+  SharedEnv(int num_of_robots, const std::array<int, DIM> &bounds,
+            const vector<State<DIM>> &start_states, const vector<State<DIM>> &goal_states,
+            const vector<double> &radii, const vector<double> &max_expand_distances,
             const vector<double> &max_velocities, const vector<int> &iterations,
-            const vector<double> &goal_sample_rates, const vector<shared_ptr<Obstacle>> &obstacles, string algorithm)
-      : num_of_robots(num_of_robots), width(width), height(height), start_points(start_points),
-        goal_points(goal_points), radii(radii), max_expand_distances(max_expand_distances),
+            const vector<double> &goal_sample_rates,
+            const vector<shared_ptr<Obstacle<DIM>>> &obstacles, string algorithm)
+      : num_of_robots(num_of_robots), bounds(bounds), start_states(start_states),
+        goal_states(goal_states), radii(radii), max_expand_distances(max_expand_distances),
         max_velocities(max_velocities), iterations(iterations), goal_sample_rates(goal_sample_rates),
         obstacles(obstacles), algorithm(std::move(algorithm)), gen(seed) {}
 
+  // 2D 호환성을 위한 생성자 (2D에서만 사용 가능)
+  SharedEnv(int num_of_robots, int width, int height, const vector<State<DIM>> &start_states,
+            const vector<State<DIM>> &goal_states, const vector<double> &radii,
+            const vector<double> &max_expand_distances, const vector<double> &max_velocities,
+            const vector<int> &iterations, const vector<double> &goal_sample_rates,
+            const vector<shared_ptr<Obstacle<DIM>>> &obstacles, string algorithm)
+      : num_of_robots(num_of_robots), start_states(start_states),
+        goal_states(goal_states), radii(radii), max_expand_distances(max_expand_distances),
+        max_velocities(max_velocities), iterations(iterations), goal_sample_rates(goal_sample_rates),
+        obstacles(obstacles), algorithm(std::move(algorithm)), gen(seed) {
+    static_assert(DIM >= 2, "This constructor requires at least 2D");
+    bounds[0] = width;
+    bounds[1] = height;
+    for (int i = 2; i < DIM; ++i) {
+      bounds[i] = 1; // 기본값으로 1 설정
+    }
+  }
+
+  // 편의를 위한 getter 함수들
+  int width() const { 
+    static_assert(DIM >= 1, "Need at least 1D for width");
+    return bounds[0]; 
+  }
+
+  int height() const { 
+    static_assert(DIM >= 2, "Need at least 2D for height");
+    return bounds[1]; 
+  }
+
+  int depth() const { 
+    static_assert(DIM >= 3, "Need at least 3D for depth");
+    return bounds[2]; 
+  }
+
   void generateRandomInstance() {
-    start_points.clear();
-    goal_points.clear();
+    start_states.clear();
+    goal_states.clear();
 
     int agent_id = 0;
-    while (start_points.size() < num_of_robots) {
-      uniform_real_distribution<> dis_width(radii[agent_id], width - radii[agent_id]);
-      uniform_real_distribution<> dis_height(radii[agent_id], height - radii[agent_id]);
-      auto start_point = Point(dis_width(gen), dis_height(gen));
-      if (!obstacleConstrained(start_point, radii[agent_id]) && !occupied(start_point, radii[agent_id], start_points)) {
-        start_points.emplace_back(start_point);
+    while (start_states.size() < num_of_robots) {
+      State<DIM> start_state = generateRandomState(agent_id);
+      if (!obstacleConstrained(start_state, radii[agent_id]) &&
+          !occupied(start_state, radii[agent_id], start_states)) {
+        start_states.emplace_back(start_state);
         agent_id++;
       }
     }
 
     agent_id = 0;
-    while (goal_points.size() < num_of_robots) {
-      uniform_real_distribution<> dis_width(radii[agent_id], width - radii[agent_id]);
-      uniform_real_distribution<> dis_height(radii[agent_id], height - radii[agent_id]);
-      auto goal_point = Point(dis_width(gen), dis_height(gen));
-      if (!obstacleConstrained(goal_point, radii[agent_id]) && !occupied(goal_point, radii[agent_id], goal_points)) {
-        goal_points.emplace_back(goal_point);
+    while (goal_states.size() < num_of_robots) {
+      State<DIM> goal_state = generateRandomState(agent_id);
+      if (!obstacleConstrained(goal_state, radii[agent_id]) &&
+          !occupied(goal_state, radii[agent_id], goal_states)) {
+        goal_states.emplace_back(goal_state);
         agent_id++;
       }
     }
   }
 
-  bool obstacleConstrained(const Point &other_point, const double other_radius) const {
-    return any_of(obstacles.begin(), obstacles.end(), [&](const shared_ptr<Obstacle> &obstacle) {
-      return obstacle->constrained(other_point, other_radius);
-    });
+  bool obstacleConstrained(const State<DIM> &state, const double radius) const {
+    return any_of(obstacles.begin(), obstacles.end(),
+                  [&](const shared_ptr<Obstacle<DIM>> &obstacle) {
+                    return obstacle->isColliding(state, radius);
+                  });
   }
 
-  bool occupied(const Point &other_point, const double other_radius, const vector<Point> &other_points) const {
-    for (int agent_id = 0; agent_id < other_points.size(); ++agent_id) {
-      if (calculateDistance(other_point, other_points[agent_id]) < (radii[agent_id] + other_radius) * 2) {
+  bool occupied(const State<DIM> &state, const double radius,
+                const vector<State<DIM>> &other_states) const {
+    for (int agent_id = 0; agent_id < other_states.size(); ++agent_id) {
+      if (calculateDistance(state, other_states[agent_id]) < (radii[agent_id] + radius) * 2) {
         return true;
       }
     }
     return false;
   }
+
+private:
+  State<DIM> generateRandomState(int agent_id) {
+    State<DIM> state;
+    for (int i = 0; i < DIM; ++i) {
+      uniform_real_distribution<> dis(radii[agent_id], bounds[i] - radii[agent_id]);
+      state[i] = dis(gen);
+    }
+    return state;
+  }
 };
+
+// 2D 특화 타입 별명 (하위 호환성)
+using SharedEnv2D = SharedEnv<2>;
 
 #endif // SHAREDENV_H

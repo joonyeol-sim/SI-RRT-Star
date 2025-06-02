@@ -4,12 +4,23 @@
 #include "SharedEnv.h"
 #include "common.h"
 
+// 차원 설정 (PROBLEM_DIM을 변경하여 2D, 3D 등 지원)
+constexpr int PROBLEM_DIM = 3;
+using ProblemState = State<PROBLEM_DIM>;
+using ProblemSharedEnv = SharedEnv<PROBLEM_DIM>;
+using ProblemConstraintTable = ConstraintTable<PROBLEM_DIM>;
+using ProblemSIRRT = SIRRT<PROBLEM_DIM>;
+using ProblemSICBS = SICBS<PROBLEM_DIM>;
+using ProblemSolution = Solution<PROBLEM_DIM>;
+using ProblemObstacle = Obstacle<PROBLEM_DIM>;
+
 int main(int argc, char *argv[]) {
   string mapname;
   string obs;
   string robotnum;
   string testnum;
   string algorithm;
+
   for (int i = 1; i < argc; ++i) {
     if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
       mapname = argv[i + 1];
@@ -30,33 +41,66 @@ int main(int argc, char *argv[]) {
                         robotnum + "_" + testnum + "_solution.txt";
   string dataPath = "data/" + mapname + "_" + obs + "/agents" + robotnum + "/" + mapname + "_" + obs + "_" + robotnum +
                     "_" + testnum + "_data.txt";
+
   YAML::Node config = YAML::LoadFile(benchmarkPath);
 
-  vector<shared_ptr<Obstacle>> obstacles;
+  // 장애물 생성 (n차원 구조에 맞게)
+  vector<shared_ptr<ProblemObstacle>> obstacles;
   for (size_t i = 0; i < config["obstacles"].size(); ++i) {
     if (mapname == "CircleEnv") {
       auto center = config["obstacles"][i]["center"].as<std::vector<double>>();
       auto radius = config["obstacles"][i]["radius"].as<double>();
-      obstacles.emplace_back(make_shared<CircularObstacle>(center[0], center[1], radius));
+      // n차원 중심점에 맞게 생성 (2D의 경우)
+      if constexpr (PROBLEM_DIM == 2) {
+        obstacles.emplace_back(make_shared<HyperSphereObstacle<PROBLEM_DIM>>(radius, center[0], center[1]));
+      } else if constexpr (PROBLEM_DIM == 3) {
+        obstacles.emplace_back(make_shared<HyperSphereObstacle<PROBLEM_DIM>>(radius, center[0], center[1], center[2]));
+      }
     } else {
       auto center = config["obstacles"][i]["center"].as<std::vector<double>>();
       auto height = config["obstacles"][i]["height"].as<double>();
       auto width = config["obstacles"][i]["width"].as<double>();
-      obstacles.emplace_back(make_shared<RectangularObstacle>(center[0], center[1], width, height));
+      // n차원 직육면체에 맞게 생성 (2D의 경우)
+      if constexpr (PROBLEM_DIM == 2) {
+        obstacles.emplace_back(make_shared<HyperRectangleObstacle<PROBLEM_DIM>>(center[0], center[1], width, height));
+      } else if constexpr (PROBLEM_DIM == 3) {
+        auto depth = config["obstacles"][i]["depth"].as<double>(1.0); // 기본값 1.0
+        obstacles.emplace_back(make_shared<HyperRectangleObstacle<PROBLEM_DIM>>(center[0], center[1], center[2], width, height, depth));
+      }
     }
   }
-  vector<Point> start_points;
-  vector<Point> goal_points;
 
-  start_points.reserve(config["startPoints"].size());
-  goal_points.reserve(config["goalPoints"].size());
+  // 시작점과 목표점 생성 (n차원 State에 맞게)
+  vector<ProblemState> start_states;
+  vector<ProblemState> goal_states;
+
+  start_states.reserve(config["startPoints"].size());
+  goal_states.reserve(config["goalPoints"].size());
   for (size_t i = 0; i < config["startPoints"].size(); ++i) {
     auto start = config["startPoints"][i].as<std::vector<double>>();
     auto goal = config["goalPoints"][i].as<std::vector<double>>();
-    start_points.emplace_back(start[0], start[1]);
-    goal_points.emplace_back(goal[0], goal[1]);
+    
+    // n차원 좌표에 맞게 생성
+    if constexpr (PROBLEM_DIM == 2) {
+      start_states.emplace_back(start[0], start[1]);
+      goal_states.emplace_back(goal[0], goal[1]);
+    } else if constexpr (PROBLEM_DIM == 3) {
+      start_states.emplace_back(start[0], start[1], start.size() > 2 ? start[2] : 0.0);
+      goal_states.emplace_back(goal[0], goal[1], goal.size() > 2 ? goal[2] : 0.0);
+    } else {
+      // 일반적인 n차원 처리
+      std::array<double, PROBLEM_DIM> start_coords{};
+      std::array<double, PROBLEM_DIM> goal_coords{};
+      for (int dim = 0; dim < PROBLEM_DIM; ++dim) {
+        start_coords[dim] = dim < start.size() ? start[dim] : 0.0;
+        goal_coords[dim] = dim < goal.size() ? goal[dim] : 0.0;
+      }
+      start_states.emplace_back(start_coords);
+      goal_states.emplace_back(goal_coords);
+    }
   }
 
+  // 환경 설정
   int num_of_agents = config["agentNum"].as<int>();
   int width = config["width"].as<int>(40.0);
   int height = config["height"].as<int>(40.0);
@@ -66,6 +110,7 @@ int main(int argc, char *argv[]) {
   vector<double> thresholds;
   vector<int> iterations;
   vector<double> goal_sample_rates;
+
   for (int i = 0; i < num_of_agents; ++i) {
     radii.emplace_back(0.5);
     max_expand_distances.emplace_back(5.0);
@@ -75,24 +120,26 @@ int main(int argc, char *argv[]) {
     goal_sample_rates.emplace_back(10.0);
   }
 
-  SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances,
-                            max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
-  ConstraintTable constraint_table(env);
-  Solution solution;
+  // SharedEnv 생성 (템플릿 버전 사용, 2D 호환성 유지)
+  ProblemSharedEnv env(num_of_agents, width, height, start_states, goal_states, radii, max_expand_distances,
+                       max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
+
+  ProblemConstraintTable constraint_table(env);
+  ProblemSolution solution;
   auto start = std::chrono::high_resolution_clock::now();
   double sum_of_costs = 0.0;
   double makespan = 0.0;
 
   if (algorithm == "cbs") {
     // SI-CCBS
-    SICBS sicbs(env, constraint_table);
+    ProblemSICBS sicbs(env, constraint_table);
     solution = sicbs.run();
     sum_of_costs = sicbs.sum_of_costs;
     makespan = sicbs.makespan;
   } else if (algorithm == "pp") {
     // SI-CPP
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
-      SIRRT sirrt(agent_id, env, constraint_table);
+      ProblemSIRRT sirrt(agent_id, env, constraint_table);
       auto path = sirrt.run();
       cout << "Agent " << agent_id << " found a solution" << endl;
       solution.emplace_back(path);
@@ -112,7 +159,9 @@ int main(int argc, char *argv[]) {
   cout << "sum of cost: " << sum_of_costs << endl;
   cout << "makespan: " << makespan << endl;
   cout << "computation time: " << duration.count() << endl;
-  saveSolution(solution, solutionPath);
+
+  // 템플릿 버전의 save 함수 사용
+  saveSolution<PROBLEM_DIM>(solution, solutionPath);
   saveData(sum_of_costs, makespan, duration.count(), dataPath);
 
   return 0;

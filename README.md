@@ -51,5 +51,5 @@ The agent is represented as a circle with the radius of the agent and moves alon
 # -t is the test number ([0-49])
 
 # This command will visualize the result of the 0th instance of the CircleEnv with 10 obstacle density and 60 agents.
-python visualizer.py -m CircleEnv -o 10 -r 60 -t 0
+python visualizer2D.py -m CircleEnv -o 10 -r 60 -t 0
 ```

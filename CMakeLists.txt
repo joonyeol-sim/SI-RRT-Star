@@ -16,7 +16,12 @@ find_package(yaml-cpp REQUIRED)
 link_directories(/opt/homebrew/lib)
 
 # 소스 파일 탐색
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES 
+     "src/common.cpp"
+     "src/ConstraintTable.cpp"
+     "src/main.cpp"
+     "src/SIRRT.cpp"
+     "src/SICBS.cpp")
 
 # 실행 파일 생성
 add_executable(SI-RRTStar ${SOURCES})

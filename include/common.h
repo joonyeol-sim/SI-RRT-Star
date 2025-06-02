@@ -16,124 +16,350 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <array>
 
 using namespace std;
 
+// 기본 차원 설정
+constexpr int DEFAULT_DIM = 2;
+
+template<int DIM = DEFAULT_DIM>
 class Velocity {
 public:
-  double x, y;
+  std::array<double, DIM> coords;
 
-  explicit Velocity(const double vx = 0.0, const double vy = 0.0) : x(vx), y(vy) {}
+  explicit Velocity() {
+    coords.fill(0.0);
+  }
 
-  bool operator==(const Velocity &other) const { return x == other.x && y == other.y; }
+  explicit Velocity(const std::array<double, DIM>& values) : coords(values) {}
 
-  bool operator!=(const Velocity &other) const { return !(*this == other); }
+  // 가변 인자 생성자
+  template<typename... Args>
+  explicit Velocity(Args... args) {
+    static_assert(sizeof...(args) == DIM, "Number of arguments must match dimension");
+    coords = {static_cast<double>(args)...};
+  }
 
-  Velocity operator+(const Velocity &other) const { return Velocity(x + other.x, y + other.y); }
+  double& operator[](int index) { return coords[index]; }
+  const double& operator[](int index) const { return coords[index]; }
 
-  Velocity operator-(const Velocity &other) const { return Velocity(x - other.x, y - other.y); }
+  bool operator==(const Velocity<DIM> &other) const {
+    return coords == other.coords;
+  }
 
-  double dot(const Velocity &other) const { return x * other.x + y * other.y; }
+  bool operator!=(const Velocity<DIM> &other) const {
+    return !(*this == other);
+  }
 
-  double length() const { return std::sqrt(x * x + y * y); }
+  Velocity<DIM> operator+(const Velocity<DIM> &other) const {
+    Velocity<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] + other.coords[i];
+    }
+    return result;
+  }
+
+  Velocity<DIM> operator-(const Velocity<DIM> &other) const {
+    Velocity<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] - other.coords[i];
+    }
+    return result;
+  }
+
+  template<typename T>
+  Velocity<DIM> operator*(const T &scalar) const {
+    Velocity<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] * static_cast<double>(scalar);
+    }
+    return result;
+  }
+
+  template<typename T>
+  double dot(const T &other) const {
+    double result = 0.0;
+    for (int i = 0; i < DIM; ++i) {
+      result += coords[i] * other.coords[i];
+    }
+    return result;
+  }
+
+  double length() const {
+    double sum = 0.0;
+    for (int i = 0; i < DIM; ++i) {
+      sum += coords[i] * coords[i];
+    }
+    return std::sqrt(sum);
+  }
+
+  Velocity<DIM> normalize() const {
+    double len = length();
+    if (len == 0.0) return *this;
+    return *this * (1.0 / len);
+  }
 };
 
-class Point {
+template<int DIM = DEFAULT_DIM>
+class State {
 public:
-  double x, y;
+  std::array<double, DIM> coords;
 
-  explicit Point(const double x = 0.0, const double y = 0.0) : x(x), y(y) {}
+  explicit State() {
+    coords.fill(0.0);
+  }
 
-  bool operator==(const Point &other) const { return x == other.x && y == other.y; }
+  explicit State(const std::array<double, DIM>& values) : coords(values) {}
 
-  bool operator!=(const Point &other) const { return !(*this == other); }
+  // 가변 인자 생성자
+  template<typename... Args>
+  explicit State(Args... args) {
+    static_assert(sizeof...(args) == DIM, "Number of arguments must match dimension");
+    coords = {static_cast<double>(args)...};
+  }
 
-  Point operator+(const Point &other) const { return Point(x + other.x, y + other.y); }
+  double& operator[](int index) { return coords[index]; }
+  const double& operator[](int index) const { return coords[index]; }
 
-  Point operator-(const Point &other) const { return Point(x - other.x, y - other.y); }
+  bool operator==(const State<DIM> &other) const {
+    return coords == other.coords;
+  }
 
-  double dot(const Point &other) const { return x * other.x + y * other.y; }
-  double dot(const Velocity &other) const { return x * other.x + y * other.y; }
+  bool operator!=(const State<DIM> &other) const {
+    return !(*this == other);
+  }
+
+  State<DIM> operator+(const State<DIM> &other) const {
+    State<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] + other.coords[i];
+    }
+    return result;
+  }
+
+  State<DIM> operator-(const State<DIM> &other) const {
+    State<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] - other.coords[i];
+    }
+    return result;
+  }
+
+  template<typename T>
+  State<DIM> operator*(const T &scalar) const {
+    State<DIM> result;
+    for (int i = 0; i < DIM; ++i) {
+      result.coords[i] = coords[i] * static_cast<double>(scalar);
+    }
+    return result;
+  }
+
+  template<typename T>
+  double dot(const T &other) const {
+    double result = 0.0;
+    for (int i = 0; i < DIM; ++i) {
+      result += coords[i] * other.coords[i];
+    }
+    return result;
+  }
+
+  double distance(const State<DIM> &other) const {
+    double sum = 0.0;
+    for (int i = 0; i < DIM; ++i) {
+      double diff = coords[i] - other.coords[i];
+      sum += diff * diff;
+    }
+    return std::sqrt(sum);
+  }
 };
 
-using Path = std::vector<std::tuple<Point, double>>;
+// 타입 별명
+using State2D = State<2>;
+using State3D = State<3>;
+using Velocity2D = Velocity<2>;
+using Velocity3D = Velocity<3>;
+
+template<int DIM = DEFAULT_DIM>
+using Path = std::vector<std::tuple<State<DIM>, double>>;
+
+template<int DIM = DEFAULT_DIM>
+using Conflict = std::tuple<int, int, std::tuple<Path<DIM>, Path<DIM>>>;
+
+template<int DIM = DEFAULT_DIM>
+using Constraint = std::tuple<double, Path<DIM>>;
+
+template<int DIM = DEFAULT_DIM>
+using Solution = std::vector<Path<DIM>>;
+
 using Interval = std::pair<double, double>;
-using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
-using Constraint = std::tuple<double, Path>;
-using Solution = std::vector<Path>;
 
-void openFile(ofstream &file, const string &filename);
+// 유틸리티 함수들
+template<int DIM = DEFAULT_DIM>
+Velocity<DIM> toVelocity(const State<DIM>& from, const State<DIM>& to) {
+  Velocity<DIM> result;
+  for (int i = 0; i < DIM; ++i) {
+    result.coords[i] = to.coords[i] - from.coords[i];
+  }
+  return result;
+}
 
-void writePath(ofstream &file, const Path &path);
+template<int DIM = DEFAULT_DIM>
+State<DIM> toState(const Velocity<DIM>& velocity) {
+  State<DIM> result;
+  for (int i = 0; i < DIM; ++i) {
+    result.coords[i] = velocity.coords[i];
+  }
+  return result;
+}
 
-void savePath(const Path &path, const string &filename);
+template<int DIM = DEFAULT_DIM>
+double calculateDistance(const State<DIM>& state1, const State<DIM>& state2) {
+  return state1.distance(state2);
+}
 
-void saveSolution(const Solution &solution, const string &filename);
-
-void saveData(double cost, double makespan, double duration, const string &filename);
-
-double calculateDistance(Point point1, Point point2);
-
-struct PointHash {
-  size_t operator()(const Point &point) const {
-    auto [x, y] = point;
+template<int DIM = DEFAULT_DIM>
+struct StateHash {
+  size_t operator()(const State<DIM> &state) const {
     size_t seed = 0;
-    boost::hash_combine(seed, x);
-    boost::hash_combine(seed, y);
+    for (int i = 0; i < DIM; ++i) {
+      boost::hash_combine(seed, state.coords[i]);
+    }
     return seed;
   }
 };
 
+// 파일 I/O 함수 선언들
+void openFile(ofstream &file, const string &filename);
+void saveData(double cost, double makespan, double duration, const string &filename);
+
+template<int DIM = DEFAULT_DIM>
+void writePath(ofstream &file, const Path<DIM> &path);
+
+template<int DIM = DEFAULT_DIM>
+void savePath(const Path<DIM> &path, const string &filename);
+
+template<int DIM = DEFAULT_DIM>
+void saveSolution(const Solution<DIM> &solution, const string &filename);
+
+// 장애물 클래스들
+template<int DIM = DEFAULT_DIM>
 class Obstacle {
 public:
-  Point point;
+  State<DIM> center;
 
-  Obstacle(double x, double y) : point(Point(x, y)) {}
+  template<typename... Args>
+  explicit Obstacle(Args... args) : center(State<DIM>(args...)) {}
 
   virtual ~Obstacle() = default;
 
-  virtual bool constrained(const Point &other_point, const double other_radius) = 0;
+  virtual bool isColliding(const State<DIM> &state, double radius) const = 0;
 };
 
-class RectangularObstacle : public Obstacle {
+template<int DIM = DEFAULT_DIM>
+class HyperRectangleObstacle : public Obstacle<DIM> {
 public:
-  double width, height;
+  std::array<double, DIM> dimensions;
 
-  RectangularObstacle(double x, double y, double width, double height) : Obstacle(x, y), width(width), height(height) {}
+  template<typename... Args>
+  HyperRectangleObstacle(Args... args) : Obstacle<DIM>() {
+    static_assert(sizeof...(args) == DIM * 2, "Arguments must be center coordinates + dimensions");
+    std::array<double, DIM * 2> all_args = {static_cast<double>(args)...};
 
-  bool constrained(const Point &other_point, const double other_radius) override {
-    const auto &[agentX, agentY] = other_point;
-    const double agentR = other_radius;
-    const auto &[x, y] = point;
+    for (int i = 0; i < DIM; ++i) {
+      this->center.coords[i] = all_args[i];
+      dimensions[i] = all_args[i + DIM];
+    }
+  }
 
-    double rectLeft = x - width / 2;
-    double rectRight = x + width / 2;
-    double rectTop = y - height / 2;
-    double rectBottom = y + height / 2;
+  bool isColliding(const State<DIM> &state, double radius) const override {
+    // N차원 하이퍼직육면체와의 충돌 검사
+    bool inside = true;
+    double dist_sq = 0.0;
 
-    if (agentX >= rectLeft && agentX <= rectRight && agentY >= rectTop && agentY <= rectBottom) {
-      return true;
+    for (int i = 0; i < DIM; ++i) {
+      double min_bound = this->center.coords[i] - dimensions[i] / 2;
+      double max_bound = this->center.coords[i] + dimensions[i] / 2;
+
+      if (state.coords[i] < min_bound || state.coords[i] > max_bound) {
+        inside = false;
+      }
+
+      double closest = std::max(min_bound, std::min(state.coords[i], max_bound));
+      double diff = state.coords[i] - closest;
+      dist_sq += diff * diff;
     }
 
-    double closestX = (agentX <= rectLeft) ? rectLeft : (agentX >= rectRight) ? rectRight : agentX;
-    double closestY = (agentY <= rectTop) ? rectTop : (agentY >= rectBottom) ? rectBottom : agentY;
-
-    double distX = agentX - closestX;
-    double distY = agentY - closestY;
-
-    return (distX * distX + distY * distY) <= (agentR * agentR);
+    return inside || (dist_sq <= radius * radius);
   }
 };
 
-class CircularObstacle : public Obstacle {
+template<int DIM = DEFAULT_DIM>
+class HyperSphereObstacle : public Obstacle<DIM> {
 public:
   double radius;
 
-  CircularObstacle(double x, double y, double radius) : Obstacle(x, y), radius(radius) {}
+  template<typename... Args>
+  HyperSphereObstacle(double r, Args... args) : Obstacle<DIM>(args...), radius(r) {}
 
-  bool constrained(const Point &other_point, const double other_radius) override {
-    return (calculateDistance(point, other_point) <= radius + other_radius);
+  bool isColliding(const State<DIM> &state, double agent_radius) const override {
+    return (this->center.distance(state) <= radius + agent_radius);
   }
 };
+
+// 편의를 위한 2D/3D 특화 타입
+using RectangleObstacle = HyperRectangleObstacle<2>;
+using BoxObstacle = HyperRectangleObstacle<3>;
+using CircleObstacle = HyperSphereObstacle<2>;
+using SphereObstacle = HyperSphereObstacle<3>;
+
+// 템플릿 함수 구현들
+template<int DIM>
+void writePath(ofstream &file, const Path<DIM> &path) {
+  for (const auto &state_time : path) {
+    const auto &state = get<0>(state_time);
+    double time = get<1>(state_time);
+    file << "(";
+    for (int i = 0; i < DIM; ++i) {
+      file << state.coords[i];
+      if (i < DIM - 1) file << ",";
+    }
+    file << "," << time << ")->";
+  }
+  file << endl;
+}
+
+template<int DIM>
+void savePath(const Path<DIM> &path, const string &filename) {
+  ofstream file;
+  openFile(file, filename);
+  if (!file.is_open())
+    return;
+
+  writePath(file, path);
+  file.close();
+
+  if (!std::filesystem::exists(filename)) {
+    cerr << "Failed to write file: " << filename << endl;
+  }
+}
+
+template<int DIM>
+void saveSolution(const Solution<DIM> &solution, const string &filename) {
+  ofstream file;
+  openFile(file, filename);
+  if (!file.is_open())
+    return;
+
+  for (size_t i = 0; i < solution.size(); ++i) {
+    file << "Agent " << i << ": ";
+    writePath(file, solution[i]);
+  }
+  file.close();
+
+  if (!std::filesystem::exists(filename)) {
+    cerr << "Failed to write file: " << filename << endl;
+  }
+}
 
 #endif // COMMON_H
