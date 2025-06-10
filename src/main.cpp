@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
   string robotnum;
   string testnum;
   string algorithm;
+  bool use_random = false; // 랜덤 인스턴스 사용 여부
 
   for (int i = 1; i < argc; ++i) {
     if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
@@ -32,6 +33,8 @@ int main(int argc, char *argv[]) {
       testnum = argv[i + 1];
     } else if (strcmp(argv[i], "-a") == 0 && i + 1 < argc) {
       algorithm = argv[i + 1];
+    } else if (strcmp(argv[i], "--random") == 0) {
+      use_random = true;
     }
   }
 
@@ -47,7 +50,7 @@ int main(int argc, char *argv[]) {
   // 장애물 생성 (n차원 구조에 맞게)
   vector<shared_ptr<ProblemObstacle>> obstacles;
   for (size_t i = 0; i < config["obstacles"].size(); ++i) {
-    if (mapname == "CircleEnv") {
+    if (mapname == "CircleEnv" || mapname == "SphereEnv") {
       auto center = config["obstacles"][i]["center"].as<std::vector<double>>();
       auto radius = config["obstacles"][i]["radius"].as<double>();
       // n차원 중심점에 맞게 생성 (2D의 경우)
@@ -70,40 +73,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // 시작점과 목표점 생성 (n차원 State에 맞게)
-  vector<ProblemState> start_states;
-  vector<ProblemState> goal_states;
-
-  start_states.reserve(config["startPoints"].size());
-  goal_states.reserve(config["goalPoints"].size());
-  for (size_t i = 0; i < config["startPoints"].size(); ++i) {
-    auto start = config["startPoints"][i].as<std::vector<double>>();
-    auto goal = config["goalPoints"][i].as<std::vector<double>>();
-    
-    // n차원 좌표에 맞게 생성
-    if constexpr (PROBLEM_DIM == 2) {
-      start_states.emplace_back(start[0], start[1]);
-      goal_states.emplace_back(goal[0], goal[1]);
-    } else if constexpr (PROBLEM_DIM == 3) {
-      start_states.emplace_back(start[0], start[1], start.size() > 2 ? start[2] : 0.0);
-      goal_states.emplace_back(goal[0], goal[1], goal.size() > 2 ? goal[2] : 0.0);
-    } else {
-      // 일반적인 n차원 처리
-      std::array<double, PROBLEM_DIM> start_coords{};
-      std::array<double, PROBLEM_DIM> goal_coords{};
-      for (int dim = 0; dim < PROBLEM_DIM; ++dim) {
-        start_coords[dim] = dim < start.size() ? start[dim] : 0.0;
-        goal_coords[dim] = dim < goal.size() ? goal[dim] : 0.0;
-      }
-      start_states.emplace_back(start_coords);
-      goal_states.emplace_back(goal_coords);
-    }
-  }
-
   // 환경 설정
   int num_of_agents = config["agentNum"].as<int>();
   int width = config["width"].as<int>(40.0);
   int height = config["height"].as<int>(40.0);
+  int depth = config["depth"].as<int>(20.0);
+
   vector<double> radii;
   vector<double> max_expand_distances;
   vector<double> max_velocities;
@@ -112,7 +87,7 @@ int main(int argc, char *argv[]) {
   vector<double> goal_sample_rates;
 
   for (int i = 0; i < num_of_agents; ++i) {
-    radii.emplace_back(0.5);
+    radii.emplace_back(1.0);
     max_expand_distances.emplace_back(5.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
@@ -120,9 +95,68 @@ int main(int argc, char *argv[]) {
     goal_sample_rates.emplace_back(10.0);
   }
 
+  // 시작점과 목표점 생성
+  vector<ProblemState> start_states;
+  vector<ProblemState> goal_states;
+
+  if (!use_random) {
+    // YAML 파일에서 읽어오기 (기존 방식)
+    start_states.reserve(config["startPoints"].size());
+    goal_states.reserve(config["goalPoints"].size());
+    for (size_t i = 0; i < config["startPoints"].size(); ++i) {
+      auto start = config["startPoints"][i].as<std::vector<double>>();
+      auto goal = config["goalPoints"][i].as<std::vector<double>>();
+
+      // n차원 좌표에 맞게 생성
+      if constexpr (PROBLEM_DIM == 2) {
+        start_states.emplace_back(start[0], start[1]);
+        goal_states.emplace_back(goal[0], goal[1]);
+      } else if constexpr (PROBLEM_DIM == 3) {
+        start_states.emplace_back(start[0], start[1], start.size() > 2 ? start[2] : 0.0);
+        goal_states.emplace_back(goal[0], goal[1], goal.size() > 2 ? goal[2] : 0.0);
+      } else {
+        // 일반적인 n차원 처리
+        std::array<double, PROBLEM_DIM> start_coords{};
+        std::array<double, PROBLEM_DIM> goal_coords{};
+        for (int dim = 0; dim < PROBLEM_DIM; ++dim) {
+          start_coords[dim] = dim < start.size() ? start[dim] : 0.0;
+          goal_coords[dim] = dim < goal.size() ? goal[dim] : 0.0;
+        }
+        start_states.emplace_back(start_coords);
+        goal_states.emplace_back(goal_coords);
+      }
+    }
+  }
+
   // SharedEnv 생성 (템플릿 버전 사용, 2D 호환성 유지)
-  ProblemSharedEnv env(num_of_agents, width, height, start_states, goal_states, radii, max_expand_distances,
+  ProblemSharedEnv env(num_of_agents, width, height, depth, start_states, goal_states, radii, max_expand_distances,
                        max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
+
+  // 랜덤 인스턴스 생성 (use_random이 true인 경우)
+  if (use_random) {
+    cout << "Generating random instance..." << endl;
+    env.generateRandomInstance();
+    cout << "Random instance generated successfully!" << endl;
+
+    // 생성된 시작점과 목표점 출력 (디버깅용)
+    cout << "Start points:" << endl;
+    for (int i = 0; i < num_of_agents; ++i) {
+      cout << "Agent " << i << ": ";
+      for (int dim = 0; dim < PROBLEM_DIM; ++dim) {
+        cout << env.start_states[i][dim] << " ";
+      }
+      cout << endl;
+    }
+
+    cout << "Goal points:" << endl;
+    for (int i = 0; i < num_of_agents; ++i) {
+      cout << "Agent " << i << ": ";
+      for (int dim = 0; dim < PROBLEM_DIM; ++dim) {
+        cout << env.goal_states[i][dim] << " ";
+      }
+      cout << endl;
+    }
+  }
 
   ProblemConstraintTable constraint_table(env);
   ProblemSolution solution;

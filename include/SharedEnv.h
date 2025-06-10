@@ -1,3 +1,4 @@
+
 #ifndef SHAREDENV_H
 #define SHAREDENV_H
 
@@ -36,7 +37,7 @@ public:
         obstacles(obstacles), algorithm(std::move(algorithm)), gen(seed) {}
 
   // 2D 호환성을 위한 생성자 (2D에서만 사용 가능)
-  SharedEnv(int num_of_robots, int width, int height, const vector<State<DIM>> &start_states,
+  SharedEnv(int num_of_robots, int width, int height, int depth, const vector<State<DIM>> &start_states,
             const vector<State<DIM>> &goal_states, const vector<double> &radii,
             const vector<double> &max_expand_distances, const vector<double> &max_velocities,
             const vector<int> &iterations, const vector<double> &goal_sample_rates,
@@ -48,25 +49,23 @@ public:
     static_assert(DIM >= 2, "This constructor requires at least 2D");
     bounds[0] = width;
     bounds[1] = height;
-    for (int i = 2; i < DIM; ++i) {
-      bounds[i] = 1; // 기본값으로 1 설정
-    }
+    bounds[2] = depth;
   }
 
   // 편의를 위한 getter 함수들
-  int width() const { 
+  int width() const {
     static_assert(DIM >= 1, "Need at least 1D for width");
-    return bounds[0]; 
+    return bounds[0];
   }
 
-  int height() const { 
+  int height() const {
     static_assert(DIM >= 2, "Need at least 2D for height");
-    return bounds[1]; 
+    return bounds[1];
   }
 
-  int depth() const { 
+  int depth() const {
     static_assert(DIM >= 3, "Need at least 3D for depth");
-    return bounds[2]; 
+    return bounds[2];
   }
 
   void generateRandomInstance() {
@@ -80,17 +79,16 @@ public:
           !occupied(start_state, radii[agent_id], start_states)) {
         start_states.emplace_back(start_state);
         agent_id++;
-      }
+          }
     }
 
     agent_id = 0;
     while (goal_states.size() < num_of_robots) {
       State<DIM> goal_state = generateRandomState(agent_id);
       if (!obstacleConstrained(goal_state, radii[agent_id]) &&
-          !occupied(goal_state, radii[agent_id], goal_states)) {
+          !occupied(goal_state, radii[agent_id], goal_states)){  // 시작점들과도 겹치지 않는지 확인
         goal_states.emplace_back(goal_state);
-        agent_id++;
-      }
+        agent_id++;}
     }
   }
 
