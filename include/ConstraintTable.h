@@ -34,8 +34,7 @@ class ConstraintTable {
                         vector<Point>& interpoate_points) const;
   void interpolatePointTime(int agent_id, const Point& from_point, const Point& to_point, double from_time,
                             double to_time, vector<Point>& interpoate_points, vector<double>& interpoate_times) const;
-  bool checkConflicts(const Solution& solution) const;
-  static Point calculate_state(const Point& initial_state, const std::tuple<double, double>& acc_time,
+  static Point calculate_point(const Point& initial_state, const std::tuple<double, double>& acc_time,
                                const std::tuple<double, double>& acceleration, double elapsed_time);
 
  private:

@@ -146,23 +146,23 @@ tuple<Path, Controls> SIRRT::updatePathAndControl(const shared_ptr<LLNode>& goal
     const auto curr_control = curr_node->control;
     const auto& [acceleration, acc_time, dec_time] = curr_control;
     const auto expand_time = std::max(std::get<0>(acc_time) + std::get<0>(dec_time), std::get<1>(acc_time) + std::get<1>(dec_time));
-    path.emplace_back(curr_node->point, curr_time);
+    path.emplace_back(State(curr_node->point, curr_node->angle), curr_time);
     control_inputs.emplace_back(curr_control);
     if (parent_time + expand_time + env.epsilon < curr_time) {
-      path.emplace_back(parent_node->point, curr_time - expand_time);
+      path.emplace_back(State(parent_node->point, parent_node->angle), curr_time - expand_time);
       control_inputs.emplace_back(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
     }
     curr_node = curr_node->parent;
   }
-  path.emplace_back(curr_node->point, 0);
+  path.emplace_back(State(curr_node->point, curr_node->angle), 0);
   control_inputs.emplace_back(make_tuple(0.0, 0.0), make_tuple(0.0, 0.0), make_tuple(0.0, 0.0));
   reverse(path.begin(), path.end());
   reverse(control_inputs.begin(), control_inputs.end());
 
-  if (calculateDistance(get<0>(path.front()), start_point) >= env.epsilon) {
+  if (calculateDistance(get<0>(path.front()).point, start_point) >= env.epsilon) {
     throw runtime_error("Start point is not correct!");
   }
-  if (calculateDistance(get<0>(path.back()), goal_point) >= env.epsilon) {
+  if (calculateDistance(get<0>(path.back()).point, goal_point) >= env.epsilon) {
     throw runtime_error("Goal point is not correct!");
   }
 

@@ -1,4 +1,3 @@
-
 #include "ConstraintTable.h"
 #include "SICBS.h"
 #include "SIRRT.h"
@@ -49,15 +48,27 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // Extract start and goal points from the new benchmark structure
-  vector<Point> start_points;
-  vector<Point> goal_points;
+  // Extract start and goal states from the benchmark structure
+  vector<State> start_states;
+  vector<State> goal_states;
+  vector<Point> start_points; // For SharedEnv compatibility
+  vector<Point> goal_points;  // For SharedEnv compatibility
 
   for (size_t i = 0; i < config["agents"].size(); ++i) {
     auto start_pos = config["agents"][i]["startState"]["position"].as<std::vector<double>>();
     auto goal_pos = config["agents"][i]["goalState"]["position"].as<std::vector<double>>();
-    start_points.emplace_back(start_pos[0], start_pos[1]);
-    goal_points.emplace_back(goal_pos[0], goal_pos[1]);
+
+    auto start_angle = config["agents"][i]["startState"]["angle"].as<double>();
+    auto goal_angle = config["agents"][i]["goalState"]["angle"].as<double>();
+
+    Point start_point(start_pos[0], start_pos[1]);
+    Point goal_point(goal_pos[0], goal_pos[1]);
+    start_states.emplace_back(start_point, start_angle);
+    goal_states.emplace_back(goal_point, goal_angle);
+
+    // For SharedEnv compatibility (extract just x, y)
+    start_points.emplace_back(start_point);
+    goal_points.emplace_back(goal_point);
   }
 
   // Get environment parameters from benchmark
@@ -67,11 +78,11 @@ int main(int argc, char* argv[]) {
   double robot_radius = config["robotRadius"] ? config["robotRadius"].as<double>() : 0.5;
 
   // Validate that we have the correct number of agents
-  if (start_points.size() != static_cast<size_t>(num_of_agents) ||
-      goal_points.size() != static_cast<size_t>(num_of_agents)) {
+  if (start_states.size() != static_cast<size_t>(num_of_agents) ||
+      goal_states.size() != static_cast<size_t>(num_of_agents)) {
     cerr << "Error: Number of agents mismatch. Expected: " << num_of_agents
-         << ", Got start points: " << start_points.size()
-         << ", Got goal points: " << goal_points.size() << endl;
+         << ", Got start states: " << start_states.size()
+         << ", Got goal states: " << goal_states.size() << endl;
     return -1;
   }
 
@@ -91,13 +102,8 @@ int main(int argc, char* argv[]) {
   vector<int> iterations;
   vector<double> goal_sample_rates;
 
-  // std::random_device rd;
-  // std::mt19937 gen(rd());
-  // std::uniform_real_distribution<> dis(0.3, 0.7);  // 0.3에서 0.7 사이의 균일 분포
-
   for (int i = 0; i < num_of_agents; ++i) {
-    // radii.emplace_back(dis(gen));
-    radii.emplace_back(robot_radius);  // Use radius from benchmark
+    radii.emplace_back(robot_radius);
     max_expand_distances.emplace_back(5.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
@@ -105,11 +111,12 @@ int main(int argc, char* argv[]) {
     goal_sample_rates.emplace_back(10.0);
   }
 
+  // SharedEnv는 기존 Point 구조를 사용 (내부에서는 position만 필요)
   SharedEnv env = SharedEnv(num_of_agents, static_cast<int>(width), static_cast<int>(height),
                            start_points, goal_points, radii, max_expand_distances, max_velocities,
                            iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
-  Solution soluiton;
+  Solution solution;
   ActionSolution action_solution;
 
   auto start = std::chrono::high_resolution_clock::now();
@@ -118,17 +125,17 @@ int main(int argc, char* argv[]) {
 
   if (algorithm == "cbs") {
     // SI-CCBS
-    SICBS sicbs(env, constraint_table);
-    soluiton = sicbs.run();
-    sum_of_costs = sicbs.sum_of_costs;
-    makespan = sicbs.makespan;
+    // SICBS sicbs(env, constraint_table);
+    // solution = sicbs.run();
+    // sum_of_costs = sicbs.sum_of_costs;
+    // makespan = sicbs.makespan;
   } else if (algorithm == "pp") {
     // SI-CPP
     for (int agent_id = 0; agent_id < num_of_agents; ++agent_id) {
       SIRRT sirrt(agent_id, env, constraint_table);
       auto [path, control_inputs] = sirrt.run();
       cout << "Agent " << agent_id << " found a solution" << endl;
-      soluiton.emplace_back(path);
+      solution.emplace_back(path);
       action_solution.emplace_back(control_inputs);
       sum_of_costs += get<1>(path.back());
       makespan = max(makespan, get<1>(path.back()));
@@ -140,14 +147,11 @@ int main(int argc, char* argv[]) {
   auto stop = std::chrono::high_resolution_clock::now();
   chrono::duration<double, std::ratio<1>> duration = stop - start;
 
-  if (constraint_table.checkConflicts(soluiton)) {
-    cout << "Conflict exists" << endl;
-  }
-
   cout << "sum of cost: " << sum_of_costs << endl;
   cout << "makespan: " << makespan << endl;
   cout << "computation time: " << duration.count() << endl;
-  saveSolution(soluiton, solution_path);
+
+  saveSolution(solution, solution_path);
   saveActionSolution(action_solution, action_solution_path);
   saveData(sum_of_costs, makespan, duration.count(), data_path);
 

@@ -1,3 +1,4 @@
+
 import argparse
 import re
 
@@ -48,8 +49,15 @@ paths = []
 for path_str in solution.split('Agent')[1:]:
     path = []
     for point_str in re.findall(r'\(.*?\)', path_str):
-        x, y, t = map(float, point_str.strip('()').split(','))
-        path.append((x, y, t))
+        parts = point_str.strip('()').split(',')
+        if len(parts) == 4:
+            x, y, angle, t = map(float, parts)
+            path.append((x, y, angle, t))
+        else:
+            # Fallback for different format
+            x, y, z, angle = map(float, parts)
+            # Assume z is time in this case
+            path.append((x, y, angle, z))
     paths.append(path)
 
 # Parse control for each agent
@@ -66,26 +74,24 @@ def extract_start_goal_from_benchmark(data):
     """Extract start and goal states from benchmark data"""
     start_states = []
     goal_states = []
+    start_angles = []
+    goal_angles = []
 
-    # Check for new structure (agents array)
-    if 'agents' in data:
-        agents_data = data['agents']
-        for agent in agents_data:
-            start_pos = agent['startState']['position']
-            goal_pos = agent['goalState']['position']
-            start_states.append(start_pos)
-            goal_states.append(goal_pos)
-    # Check for old structure (startPoints/goalPoints)
-    elif 'startPoints' in data and 'goalPoints' in data:
-        start_states = data['startPoints']
-        goal_states = data['goalPoints']
-    else:
-        raise ValueError("Benchmark file does not contain start/goal information")
+    agents_data = data['agents']
+    for agent in agents_data:
+        start_pos = agent['startState']['position']
+        goal_pos = agent['goalState']['position']
+        start_angle = agent['startState'].get('angle', 0)
+        goal_angle = agent['goalState'].get('angle', 0)
+        start_states.append(start_pos)
+        goal_states.append(goal_pos)
+        start_angles.append(start_angle)
+        goal_angles.append(goal_angle)
 
-    return start_states, goal_states
+    return start_states, goal_states, start_angles, goal_angles
 
 # Extract start and goal states from benchmark
-benchmark_start_states, benchmark_goal_states = extract_start_goal_from_benchmark(data)
+benchmark_start_states, benchmark_goal_states, benchmark_start_angles, benchmark_goal_angles = extract_start_goal_from_benchmark(data)
 
 # Validation: Check if solution start/goal states match benchmark
 def validate_solution_against_benchmark():
@@ -145,14 +151,17 @@ env_width = data.get('width', 40)
 env_height = data.get('height', 40)
 robot_radius = data.get('robotRadius', 0.5)
 
-# Calculate number of animation frames
-max_time = max(point[2] for path in paths for point in path)
+# Calculate number of animation frames - 시간 인덱스 수정
+max_time = max(point[3] for path in paths for point in path)  # 시간은 인덱스 3
 num_frames = int(max_time / interval) + 1
 
 # Initialize plot
 fig, ax = plt.subplots(figsize=(8, 8))
 radius = robot_radius  # Use radius from benchmark
-agents = [patches.Circle((0, 0), radius, color='blue', fill=True) for _ in range(len(paths))]
+
+# Create agents (circles) and orientation lines
+agents = [patches.Circle((0, 0), radius, color='blue', fill=True, alpha=0.7) for _ in range(len(paths))]
+agent_lines = [ax.plot([], [], 'r-', linewidth=2)[0] for _ in range(len(paths))]  # orientation lines
 agent_labels = [ax.text(0, 0, '', fontsize=8, color='white', ha='center', va='center') for _ in range(len(paths))]
 time_text = ax.text(0.005, 0.995, '', transform=ax.transAxes, horizontalalignment='left', verticalalignment='top')
 
@@ -160,15 +169,27 @@ time_text = ax.text(0.005, 0.995, '', transform=ax.transAxes, horizontalalignmen
 for agent in agents:
     ax.add_patch(agent)
 
-# Mark start and goal points with agent ID (using benchmark data)
+# Mark start and goal points with agent ID and angles (using benchmark data)
 for i in range(len(benchmark_start_states)):
     start_x, start_y = benchmark_start_states[i]
     goal_x, goal_y = benchmark_goal_states[i]
+    start_angle = benchmark_start_angles[i]
+    goal_angle = benchmark_goal_angles[i]
 
     ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
     ax.plot(goal_x, goal_y, marker='*', markersize=10, color='red')
     ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
     ax.text(goal_x, goal_y, f'G{i}', fontsize=8, color='black', ha='right', va='bottom')
+
+    # Draw start and goal orientation lines
+    line_length = radius * 1.5
+    start_line_x = start_x + line_length * np.cos(start_angle)
+    start_line_y = start_y + line_length * np.sin(start_angle)
+    goal_line_x = goal_x + line_length * np.cos(goal_angle)
+    goal_line_y = goal_y + line_length * np.sin(goal_angle)
+
+    ax.plot([start_x, start_line_x], [start_y, start_line_y], 'g-', linewidth=1, alpha=0.7)
+    ax.plot([goal_x, goal_line_x], [goal_y, goal_line_y], 'r-', linewidth=1, alpha=0.7)
 
 # Add obstacles to the plot
 for obs in obstacles:
@@ -190,9 +211,17 @@ def init():
     for i, agent in enumerate(agents):
         if i < len(benchmark_start_states):
             start_x, start_y = benchmark_start_states[i]
+            start_angle = benchmark_start_angles[i]
             agent.center = (start_x, start_y)
+
+            # Initialize orientation line
+            line_length = radius * 1.5
+            line_x = start_x + line_length * np.cos(start_angle)
+            line_y = start_y + line_length * np.sin(start_angle)
+            agent_lines[i].set_data([start_x, line_x], [start_y, line_y])
         else:
             agent.center = (0, 0)
+            agent_lines[i].set_data([], [])
         agent.set_color('blue')
 
     for i, label in enumerate(agent_labels):
@@ -204,7 +233,7 @@ def init():
             label.set_text('')
 
     time_text.set_text('Time: 0.00')
-    return agents + agent_labels + [time_text]
+    return agents + agent_lines + agent_labels + [time_text]
 
 
 def calculate_state(initial_state, acc_time, acceleration, elapsed_time):
@@ -228,28 +257,58 @@ def calculate_state(initial_state, acc_time, acceleration, elapsed_time):
 
 def update_agents_positions(current_time):
     for i, (path, agent_controls) in enumerate(zip(paths, controls)):
+        current_angle = 0  # default angle
+
         for j in range(len(path) - 1):
-            if path[j][2] <= current_time < path[j + 1][2]:
-                start = path[j][:2]
-                control = agent_controls[j + 1]
+            # 시간 인덱스를 3으로 수정
+            if path[j][3] <= current_time < path[j + 1][3]:
+                start = path[j][:2]  # x, y
+                start_angle = path[j][2]  # angle
+                end_angle = path[j + 1][2]  # angle
+
+                control = agent_controls[j + 1] if j + 1 < len(agent_controls) else (0, 0, 0, 0, 0, 0)
                 acc_x, acc_y, t1_x, t1_y, t2_x, t2_y = control
 
                 if all(v == 0 for v in control):
                     # If all control values are zero, keep the agent at its current position
                     current_x, current_y = start
+                    current_angle = start_angle
                 else:
-                    elapsed_time = current_time - path[j][2]
+                    elapsed_time = current_time - path[j][3]
+                    total_segment_time = path[j + 1][3] - path[j][3]
                     current_x, current_y = calculate_state(start, (t1_x, t1_y), (acc_x, acc_y), elapsed_time)
+
+                    # Interpolate angle
+                    if total_segment_time > 0:
+                        angle_progress = elapsed_time / total_segment_time
+                        current_angle = start_angle + (end_angle - start_angle) * angle_progress
+                    else:
+                        current_angle = start_angle
 
                 agents[i].center = (current_x, current_y)
                 agent_labels[i].set_text(str(i))
                 agent_labels[i].set_position((current_x, current_y))
+
+                # Update orientation line
+                line_length = radius * 1.5
+                line_x = current_x + line_length * np.cos(current_angle)
+                line_y = current_y + line_length * np.sin(current_angle)
+                agent_lines[i].set_data([current_x, line_x], [current_y, line_y])
                 break
         else:
+            # 경로 끝에 도달한 경우
             current_x, current_y = path[-1][:2]
+            current_angle = path[-1][2]
+
             agents[i].center = (current_x, current_y)
             agent_labels[i].set_text(str(i))
             agent_labels[i].set_position((current_x, current_y))
+
+            # Update orientation line
+            line_length = radius * 1.5
+            line_x = current_x + line_length * np.cos(current_angle)
+            line_y = current_y + line_length * np.sin(current_angle)
+            agent_lines[i].set_data([current_x, line_x], [current_y, line_y])
 
 
 def detect_collisions(current_time):
@@ -274,11 +333,16 @@ def update(frame):
     update_agents_positions(current_time)
     detect_collisions(current_time)
 
-    return agents + agent_labels + [time_text]
+    return agents + agent_lines + agent_labels + [time_text]
 
 
 # Calculate the speed multiplier to keep the animation speed consistent
 animation_interval = interval * 10
+
+# 디버깅을 위한 정보 출력
+print(f"Total frames: {num_frames}")
+print(f"Max time: {max_time}")
+print(f"Animation interval: {animation_interval}")
 
 ani = animation.FuncAnimation(fig, update, frames=num_frames, init_func=init, blit=True, interval=animation_interval)
 

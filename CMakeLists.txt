@@ -15,7 +15,10 @@ link_directories(/opt/homebrew/lib)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${YAML_CPP_INCLUDE_DIR})
 
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES "src/common.cpp"
+                 "src/ConstraintTable.cpp"
+                 "src/main.cpp"
+                 "src/SIRRT.cpp")
 
 add_executable(SI-RRTStar ${SOURCES})
 

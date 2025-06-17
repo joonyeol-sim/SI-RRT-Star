@@ -6,6 +6,7 @@
 class LLNode {
 public:
     Point point;
+    double angle;
     Control control;
     shared_ptr<LLNode> parent;
     double earliest_arrival_time;

@@ -1,3 +1,4 @@
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -25,6 +26,21 @@ using Acceleration = std::tuple<double, double>;
 using AccTime = std::tuple<double, double>;
 using DecTime = std::tuple<double, double>;
 
+// State는 x, y, angle을 포함
+struct State {
+  Point point;
+  double angle;
+
+  State(Point point, double angle) : point(std::move(point)), angle(angle) {}
+  State() : point(std::make_tuple(0.0, 0.0)), angle(0.0) {}
+
+  bool operator==(const State& other) const {
+    return std::get<0>(point) == std::get<0>(other.point) &&
+           std::get<1>(point) == std::get<1>(other.point) &&
+           angle == other.angle;
+  }
+};
+
 struct Control {
     Acceleration acceleration;
     AccTime acc_time;
@@ -35,7 +51,7 @@ struct Control {
 };
 
 using Controls = std::vector<Control>;
-using Path = std::vector<std::tuple<Point, double>>;
+using Path = std::vector<std::tuple<State, double>>; // (State, time)
 using Interval = std::pair<double, double>;
 using Conflict = std::tuple<int, int, std::tuple<Path, Path>>;
 using Constraint = std::tuple<double, Path>;
@@ -56,11 +72,15 @@ void saveData(double cost, double makespan, double duration, const string &filen
 
 double calculateDistance(Point point1, Point point2);
 
-struct State {
-  Point point;
-  Velocity velocity;
-
-  State(Point point, Velocity velocity) : point(std::move(point)), velocity(std::move(velocity)) {}
+struct StateHash {
+  size_t operator()(const State &state) const {
+    size_t seed = 0;
+    auto [x, y] = state.point;
+    boost::hash_combine(seed, x);
+    boost::hash_combine(seed, y);
+    boost::hash_combine(seed, state.angle);
+    return seed;
+  }
 };
 
 struct PointHash {
