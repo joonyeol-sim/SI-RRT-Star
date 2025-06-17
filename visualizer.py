@@ -194,11 +194,11 @@ def progress_callback(current_frame, total_frames):
     progress_bar.refresh()
 
 # Save the animation
-output_file = f"mapf_dynamics.mp4"
-ani.save(output_file, writer=writer, progress_callback=progress_callback)
+# output_file = f"mapf_dynamics.mp4"
+# ani.save(output_file, writer=writer, progress_callback=progress_callback)
 
 progress_bar.close()
 
-print(f"Animation saved as {output_file}")
+# print(f"Animation saved as {output_file}")
 
 plt.show()
