@@ -61,8 +61,89 @@ for control_str in control.split('Agent')[1:]:
         agent_controls.append((acc_x, acc_y, t1_x, t1_y, t2_x, t2_y))
     controls.append(agent_controls)
 
+# Extract start and goal states from benchmark
+def extract_start_goal_from_benchmark(data):
+    """Extract start and goal states from benchmark data"""
+    start_states = []
+    goal_states = []
+
+    # Check for new structure (agents array)
+    if 'agents' in data:
+        agents_data = data['agents']
+        for agent in agents_data:
+            start_pos = agent['startState']['position']
+            goal_pos = agent['goalState']['position']
+            start_states.append(start_pos)
+            goal_states.append(goal_pos)
+    # Check for old structure (startPoints/goalPoints)
+    elif 'startPoints' in data and 'goalPoints' in data:
+        start_states = data['startPoints']
+        goal_states = data['goalPoints']
+    else:
+        raise ValueError("Benchmark file does not contain start/goal information")
+
+    return start_states, goal_states
+
+# Extract start and goal states from benchmark
+benchmark_start_states, benchmark_goal_states = extract_start_goal_from_benchmark(data)
+
+# Validation: Check if solution start/goal states match benchmark
+def validate_solution_against_benchmark():
+    """Validate that solution start/goal states match benchmark"""
+    tolerance = 1e-2
+    validation_passed = True
+
+    print("🔍 Validating solution against benchmark...")
+
+    if len(paths) != len(benchmark_start_states):
+        print(f"❌ Number of agents mismatch: solution has {len(paths)}, benchmark has {len(benchmark_start_states)}")
+        validation_passed = False
+
+    for i, path in enumerate(paths):
+        if i >= len(benchmark_start_states):
+            break
+
+        # Check start state
+        solution_start = path[0][:2]  # (x, y) from solution
+        benchmark_start = benchmark_start_states[i]
+        start_diff = np.linalg.norm(np.array(solution_start) - np.array(benchmark_start))
+
+        if start_diff > tolerance:
+            print(f"❌ Agent {i} start state mismatch:")
+            print(f"   Solution: ({solution_start[0]:.6f}, {solution_start[1]:.6f})")
+            print(f"   Benchmark: ({benchmark_start[0]:.6f}, {benchmark_start[1]:.6f})")
+            print(f"   Difference: {start_diff:.6f}")
+            validation_passed = False
+
+        # Check goal state
+        solution_goal = path[-1][:2]  # (x, y) from solution
+        benchmark_goal = benchmark_goal_states[i]
+        goal_diff = np.linalg.norm(np.array(solution_goal) - np.array(benchmark_goal))
+
+        if goal_diff > tolerance:
+            print(f"❌ Agent {i} goal state mismatch:")
+            print(f"   Solution: ({solution_goal[0]:.6f}, {solution_goal[1]:.6f})")
+            print(f"   Benchmark: ({benchmark_goal[0]:.6f}, {benchmark_goal[1]:.6f})")
+            print(f"   Difference: {goal_diff:.6f}")
+            validation_passed = False
+
+    if validation_passed:
+        print("✅ Solution validation passed: All start/goal states match benchmark")
+    else:
+        print("❌ Solution validation failed: Some start/goal states don't match benchmark")
+
+    return validation_passed
+
+# Perform validation
+validate_solution_against_benchmark()
+
 # Parse obstacles
 obstacles = data.get('obstacles', [])
+
+# Get environment dimensions from benchmark
+env_width = data.get('width', 40)
+env_height = data.get('height', 40)
+robot_radius = data.get('robotRadius', 0.5)
 
 # Calculate number of animation frames
 max_time = max(point[2] for path in paths for point in path)
@@ -70,7 +151,7 @@ num_frames = int(max_time / interval) + 1
 
 # Initialize plot
 fig, ax = plt.subplots(figsize=(8, 8))
-radius = 0.5  # Fixed radius for agents
+radius = robot_radius  # Use radius from benchmark
 agents = [patches.Circle((0, 0), radius, color='blue', fill=True) for _ in range(len(paths))]
 agent_labels = [ax.text(0, 0, '', fontsize=8, color='white', ha='center', va='center') for _ in range(len(paths))]
 time_text = ax.text(0.005, 0.995, '', transform=ax.transAxes, horizontalalignment='left', verticalalignment='top')
@@ -79,10 +160,11 @@ time_text = ax.text(0.005, 0.995, '', transform=ax.transAxes, horizontalalignmen
 for agent in agents:
     ax.add_patch(agent)
 
-# Mark start and goal points with agent ID
-for i, path in enumerate(paths):
-    start_x, start_y, _ = path[0]
-    goal_x, goal_y, _ = path[-1]
+# Mark start and goal points with agent ID (using benchmark data)
+for i in range(len(benchmark_start_states)):
+    start_x, start_y = benchmark_start_states[i]
+    goal_x, goal_y = benchmark_goal_states[i]
+
     ax.plot(start_x, start_y, marker='s', markersize=10, color='green')
     ax.plot(goal_x, goal_y, marker='*', markersize=10, color='red')
     ax.text(start_x, start_y, f'S{i}', fontsize=8, color='black', ha='right', va='bottom')
@@ -95,20 +177,33 @@ for obs in obstacles:
         ax.add_patch(circle)
     elif 'width' in obs and 'height' in obs:
         rect = patches.Rectangle((obs['center'][0] - obs['width'] / 2, obs['center'][1] - obs['height'] / 2),
-            obs['width'], obs['height'], color='gray', fill=True)
+                                 obs['width'], obs['height'], color='gray', fill=True)
         ax.add_patch(rect)
 
 
 def init():
-    ax.set_xlim(0, 40)
-    ax.set_ylim(0, 40)
+    ax.set_xlim(0, env_width)
+    ax.set_ylim(0, env_height)
     ax.set_aspect('equal')
-    for agent in agents:
-        agent.center = (0, 0)
-        agent.set_color('blue')  # Reset color to blue in init
-    for label in agent_labels:
-        label.set_text('')
-    time_text.set_text('')
+
+    # Initialize agents at their benchmark start positions
+    for i, agent in enumerate(agents):
+        if i < len(benchmark_start_states):
+            start_x, start_y = benchmark_start_states[i]
+            agent.center = (start_x, start_y)
+        else:
+            agent.center = (0, 0)
+        agent.set_color('blue')
+
+    for i, label in enumerate(agent_labels):
+        if i < len(benchmark_start_states):
+            start_x, start_y = benchmark_start_states[i]
+            label.set_position((start_x, start_y))
+            label.set_text(str(i))
+        else:
+            label.set_text('')
+
+    time_text.set_text('Time: 0.00')
     return agents + agent_labels + [time_text]
 
 
@@ -171,6 +266,10 @@ def detect_collisions(current_time):
 def update(frame):
     current_time = frame * interval
     time_text.set_text(f'Time: {current_time:.2f}')
+
+    # Reset agent colors to blue
+    for agent in agents:
+        agent.set_color('blue')
 
     update_agents_positions(current_time)
     detect_collisions(current_time)

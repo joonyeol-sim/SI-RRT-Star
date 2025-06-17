@@ -8,7 +8,7 @@ from shapely.ops import unary_union
 import math
 
 class Benchmark2DGenerator:
-    def __init__(self, width=40, height=40, agent_num=10, obstacle_density=15, robot_radius=0.5):
+    def __init__(self, width=40, height=40, agent_num=10, obstacle_density=15, robot_radius=0.5, use_random_angle=True):
         """
         2D 벤치마크 생성기 초기화
 
@@ -18,19 +18,36 @@ class Benchmark2DGenerator:
             agent_num: 에이전트 수
             obstacle_density: 장애물이 차지하는 공간 비율 (%)
             robot_radius: 로봇의 반지름
+            use_random_angle: 로봇의 랜덤 초기 각도 사용 여부
         """
         self.width = width
         self.height = height
         self.agent_num = agent_num
         self.obstacle_density = obstacle_density  # 퍼센트
         self.robot_radius = robot_radius
+        self.use_random_angle = use_random_angle
         self.obstacles = []
-        self.start_points = []
-        self.goal_points = []
+        self.agents = []  # 에이전트별 정보를 저장할 리스트
         self.obstacle_shapes = []  # shapely 객체들 저장
 
         # 통일된 안전 거리 설정
-        self.safe_margin = robot_radius * 2.0  # 통일된 안전 거리
+        self.safe_margin = robot_radius * 2.0
+
+    def generate_random_angle(self):
+        """0도에서 360도 사이의 랜덤 각도 생성 (라디안)"""
+        return random.uniform(0, 2 * math.pi)
+
+    def normalize_angle(self, angle):
+        """각도를 0~2π 범위로 정규화"""
+        while angle < 0:
+            angle += 2 * math.pi
+        while angle >= 2 * math.pi:
+            angle -= 2 * math.pi
+        return angle
+
+    def angle_to_degrees(self, angle_rad):
+        """라디안을 도로 변환"""
+        return math.degrees(angle_rad)
 
     def generate_circle_obstacle(self):
         """2D 원형 장애물 생성"""
@@ -71,10 +88,8 @@ class Benchmark2DGenerator:
 
         target_area = (self.width * self.height) * (self.obstacle_density / 100.0)
         current_area = 0.0
-        max_attempts = 1500  # 시도 횟수 증가
+        max_attempts = 1500
         attempts = 0
-
-        print(f"목표 장애물 면적: {target_area:.2f} (전체 면적의 {self.obstacle_density}%)")
 
         while current_area < target_area and attempts < max_attempts:
             obstacle = self.generate_circle_obstacle()
@@ -95,19 +110,12 @@ class Benchmark2DGenerator:
             temp_area = unary_union(temp_shapes).area if temp_shapes else 0
 
             # 목표 면적을 초과하지 않으면 추가
-            if temp_area <= target_area * 1.05:  # 5% 여유로 줄임
+            if temp_area <= target_area * 1.05:
                 self.obstacles.append(obstacle)
                 self.obstacle_shapes.append(circle)
                 current_area = temp_area
 
-                if len(self.obstacles) % 3 == 0:
-                    current_density = self.get_current_obstacle_density()
-                    print(f"  장애물 {len(self.obstacles)}개 생성됨 - 현재 밀도: {current_density:.1f}%")
-
             attempts += 1
-
-        final_density = self.get_current_obstacle_density()
-        print(f"✅ 장애물 생성 완료: {len(self.obstacles)}개, 실제 밀도: {final_density:.1f}%")
 
     def is_point_valid_for_robot(self, point):
         """점이 장애물과 충돌하지 않는지 확인 (로봇 반지름 + 안전거리 고려)"""
@@ -142,6 +150,16 @@ class Benchmark2DGenerator:
                 return False
         return True
 
+    def get_existing_points(self):
+        """현재까지 생성된 모든 점들 반환"""
+        points = []
+        for agent in self.agents:
+            if 'startState' in agent:
+                points.append(agent['startState']['position'])
+            if 'goalState' in agent:
+                points.append(agent['goalState']['position'])
+        return points
+
     def generate_valid_point(self, existing_points=None, min_distance=None, exclude_points=None):
         """유효한 2D 점 생성 (기존 점들과 겹치지 않게)"""
         if existing_points is None:
@@ -151,7 +169,7 @@ class Benchmark2DGenerator:
         if min_distance is None:
             min_distance = self.safe_margin
 
-        max_attempts = 5000  # 시도 횟수 대폭 증가
+        max_attempts = 5000
         boundary_margin = self.robot_radius + 1.0
 
         for attempt in range(max_attempts):
@@ -174,9 +192,6 @@ class Benchmark2DGenerator:
             return point
 
         # 실패시 조건을 단계적으로 완화
-        print(f"⚠️  경고: 첫 번째 시도 실패. 조건 완화하여 재시도...")
-
-        # 2단계: 거리 조건 완화
         relaxed_distance = min_distance * 0.7
         for attempt in range(max_attempts // 2):
             x = random.uniform(boundary_margin, self.width - boundary_margin)
@@ -190,11 +205,9 @@ class Benchmark2DGenerator:
             if exclude_points and not self.check_point_collision_with_existing(point, exclude_points, self.safe_margin * 0.7):
                 continue
 
-            print(f"   조건 완화 성공 (거리: {relaxed_distance:.2f})")
             return point
 
-        # 3단계: 최소한의 조건만 유지
-        print(f"⚠️  최종 완화된 조건으로 생성...")
+        # 최소한의 조건만 유지
         for attempt in range(max_attempts // 4):
             x = random.uniform(boundary_margin, self.width - boundary_margin)
             y = random.uniform(boundary_margin, self.height - boundary_margin)
@@ -210,47 +223,57 @@ class Benchmark2DGenerator:
         ]
 
     def generate_agent_points(self):
-        """시작점과 목표점 생성 (각각 충분한 거리 확보)"""
-        self.start_points = []
-        self.goal_points = []
+        """에이전트별 시작/목표 상태 생성"""
+        self.agents = []
 
-        print("시작점 생성 중...")
-        print(f"  통일된 최소 거리: {self.safe_margin:.2f}")
-
-        # 시작점 생성
         for i in range(self.agent_num):
+            # 기존 점들 수집
+            existing_points = self.get_existing_points()
+
+            # 시작점 생성
             start_point = self.generate_valid_point(
-                existing_points=self.start_points,
+                existing_points=existing_points,
                 min_distance=self.safe_margin
             )
-            self.start_points.append(start_point)
 
-            if (i + 1) % 5 == 0 or i == self.agent_num - 1:
-                print(f"  시작점 {i + 1}/{self.agent_num} 완료")
+            # 시작 각도 생성
+            start_angle = self.generate_random_angle() if self.use_random_angle else 0.0
 
-        print("목표점 생성 중...")
-        print(f"  시작점과의 최소 거리: {self.safe_margin:.2f}")
+            # 시작 상태 생성
+            start_state = {
+                'position': start_point,
+                'angle': round(start_angle, 4)
+            }
 
-        # 목표점 생성
-        for i in range(self.agent_num):
-            start_point = self.start_points[i]
-
+            # 목표점 생성 (시작점 포함하여 기존 점들과 거리 확인)
+            existing_points_with_start = existing_points + [start_point]
             goal_point = self.generate_valid_point(
-                existing_points=self.goal_points,
+                existing_points=existing_points_with_start,
                 min_distance=self.safe_margin,
-                exclude_points=[start_point]  # 해당 시작점과의 거리 체크
+                exclude_points=[start_point]
             )
-            self.goal_points.append(goal_point)
 
-            if (i + 1) % 5 == 0 or i == self.agent_num - 1:
-                print(f"  목표점 {i + 1}/{self.agent_num} 완료")
+            # 목표 각도 생성
+            goal_angle = self.generate_random_angle() if self.use_random_angle else 0.0
+
+            # 목표 상태 생성
+            goal_state = {
+                'position': goal_point,
+                'angle': round(goal_angle, 4)
+            }
+
+            # 에이전트 정보 생성
+            agent = {
+                'id': i,
+                'startState': start_state,
+                'goalState': goal_state
+            }
+
+            self.agents.append(agent)
 
     def generate_benchmark(self):
         """전체 벤치마크 생성"""
-        print("장애물 생성 중...")
         self.generate_obstacles()
-
-        print("에이전트 점 생성 중...")
         self.generate_agent_points()
 
         benchmark_data = {
@@ -260,8 +283,8 @@ class Benchmark2DGenerator:
             'agentNum': self.agent_num,
             'robotRadius': self.robot_radius,
             'obstaclesDensity': round(self.get_current_obstacle_density(), 2),
-            'startPoints': self.start_points,
-            'goalPoints': self.goal_points,
+            'useRandomAngle': self.use_random_angle,
+            'agents': self.agents,
             'obstacles': self.obstacles
         }
 
@@ -274,55 +297,23 @@ class Benchmark2DGenerator:
         with open(filename, 'w') as file:
             yaml.dump(benchmark_data, file, default_flow_style=False, indent=2)
 
-        actual_density = self.get_current_obstacle_density()
-        print(f"✅ 2D 벤치마크가 {filename}에 저장되었습니다.")
-        print(f"   환경 크기: {self.width} x {self.height}")
-        print(f"   에이전트 수: {self.agent_num}")
-        print(f"   로봇 반지름: {self.robot_radius}")
-        print(f"   장애물 수: {len(self.obstacles)}")
-        print(f"   장애물 밀도: {actual_density:.1f}% (목표: {self.obstacle_density}%)")
-
-        # 점들 간 거리 검증
-        self.validate_points()
-
     def validate_points(self):
         """생성된 점들의 유효성 검증"""
-        print("점 검증 중...")
+        # 모든 점들 수집
+        all_points = []
+        for agent in self.agents:
+            all_points.append(agent['startState']['position'])
+            all_points.append(agent['goalState']['position'])
 
-        # 시작점들 간 거리 확인
-        min_start_distance = float('inf')
-        for i in range(len(self.start_points)):
-            for j in range(i+1, len(self.start_points)):
-                dist = np.sqrt((self.start_points[i][0] - self.start_points[j][0])**2 +
-                               (self.start_points[i][1] - self.start_points[j][1])**2)
-                min_start_distance = min(min_start_distance, dist)
+        # 점들 간 최소 거리 확인
+        min_distance = float('inf')
+        for i in range(len(all_points)):
+            for j in range(i+1, len(all_points)):
+                dist = np.sqrt((all_points[i][0] - all_points[j][0])**2 +
+                               (all_points[i][1] - all_points[j][1])**2)
+                min_distance = min(min_distance, dist)
 
-        # 목표점들 간 거리 확인
-        min_goal_distance = float('inf')
-        for i in range(len(self.goal_points)):
-            for j in range(i+1, len(self.goal_points)):
-                dist = np.sqrt((self.goal_points[i][0] - self.goal_points[j][0])**2 +
-                               (self.goal_points[i][1] - self.goal_points[j][1])**2)
-                min_goal_distance = min(min_goal_distance, dist)
-
-        # 시작점-목표점 간 거리 확인
-        min_start_goal_distance = float('inf')
-        for i in range(len(self.start_points)):
-            dist = np.sqrt((self.start_points[i][0] - self.goal_points[i][0])**2 +
-                           (self.start_points[i][1] - self.goal_points[i][1])**2)
-            min_start_goal_distance = min(min_start_goal_distance, dist)
-
-        print(f"   시작점들 간 최소 거리: {min_start_distance:.3f} (요구: {self.safe_margin:.3f})")
-        print(f"   목표점들 간 최소 거리: {min_goal_distance:.3f} (요구: {self.safe_margin:.3f})")
-        print(f"   시작-목표 최소 거리: {min_start_goal_distance:.3f} (요구: {self.safe_margin:.3f})")
-
-        # 경고 표시
-        if min_start_distance < self.safe_margin:
-            print(f"   ⚠️  시작점 간 거리 부족!")
-        if min_goal_distance < self.safe_margin:
-            print(f"   ⚠️  목표점 간 거리 부족!")
-        if min_start_goal_distance < self.safe_margin:
-            print(f"   ⚠️  시작-목표점 간 거리 부족!")
+        return min_distance >= self.safe_margin
 
 def main():
     parser = argparse.ArgumentParser(description='2D Multi-Robot Path Planning 벤치마크 생성기')
@@ -333,6 +324,7 @@ def main():
     parser.add_argument('--robot-radius', type=float, default=0.5, help='로봇 반지름 (기본값: 0.5)')
     parser.add_argument('--count', type=int, default=50, help='생성할 벤치마크 파일 수 (기본값: 50)')
     parser.add_argument('--env-name', type=str, default='CircleEnv', help='환경 이름 (기본값: CircleEnv)')
+    parser.add_argument('--no-random-angle', action='store_true', help='랜덤 각도 비활성화 (기본값: 활성화)')
 
     args = parser.parse_args()
 
@@ -341,34 +333,34 @@ def main():
     agent_dir = os.path.join(output_dir, f"agents{args.agents}")
     os.makedirs(agent_dir, exist_ok=True)
 
+    use_random_angle = not args.no_random_angle
+
     print(f"🚀 2D 벤치마크 생성 시작...")
     print(f"📁 출력 디렉토리: {agent_dir}")
-    print(f"📊 생성할 파일 수: {args.count}")
-    print(f"🤖 에이전트 수: {args.agents}")
-    print(f"🔴 로봇 반지름: {args.robot_radius}")
-    print(f"🏗️  장애물 밀도: {args.obstacles}%")
-    print(f"📦 환경 크기: {args.width} x {args.height}")
-    print(f"📏 안전 거리: {args.robot_radius * 2.0:.1f}")
-    print("=" * 50)
+    print(f"📊 파일 수: {args.count}, 에이전트: {args.agents}, 장애물: {args.obstacles}%, 최소 거리: {args.robot_radius * 2.0:.1f}")
+    print(f"🔄 랜덤 각도: {'활성화' if use_random_angle else '비활성화'}")
 
+    success_count = 0
     for i in range(args.count):
-        print(f"\n📝 파일 {i+1}/{args.count} 생성 중...")
-
         generator = Benchmark2DGenerator(
             width=args.width,
             height=args.height,
             agent_num=args.agents,
             obstacle_density=args.obstacles,
-            robot_radius=args.robot_radius
+            robot_radius=args.robot_radius,
+            use_random_angle=use_random_angle
         )
 
         filename = os.path.join(agent_dir, f"{args.env_name}_{int(args.obstacles)}_{args.agents}_{i}.yaml")
         generator.save_to_file(filename)
 
-    print("\n" + "=" * 50)
-    print(f"🎉 총 {args.count}개의 2D 벤치마크 파일이 성공적으로 생성되었습니다!")
-    print(f"📁 저장 경로: {agent_dir}")
-    print(f"📋 파일 형식: {args.env_name}_{int(args.obstacles)}_{args.agents}_[0-{args.count-1}].yaml")
+        if generator.validate_points():
+            success_count += 1
+
+        if (i + 1) % 10 == 0:
+            print(f"✅ {i + 1}/{args.count} 완료 (성공률: {success_count}/{i + 1})")
+
+    print(f"🎉 생성 완료! 총 {args.count}개 파일 생성 (성공률: {success_count}/{args.count})")
 
 if __name__ == "__main__":
     main()

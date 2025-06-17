@@ -1,3 +1,4 @@
+
 #include "ConstraintTable.h"
 #include "SICBS.h"
 #include "SIRRT.h"
@@ -47,18 +48,42 @@ int main(int argc, char* argv[]) {
       obstacles.emplace_back(make_shared<RectangularObstacle>(center[0], center[1], width, height));
     }
   }
+
+  // Extract start and goal points from the new benchmark structure
   vector<Point> start_points;
   vector<Point> goal_points;
-  for (size_t i = 0; i < config["startPoints"].size(); ++i) {
-    auto start = config["startPoints"][i].as<std::vector<double>>();
-    auto goal = config["goalPoints"][i].as<std::vector<double>>();
-    start_points.emplace_back(start[0], start[1]);
-    goal_points.emplace_back(goal[0], goal[1]);
+
+  for (size_t i = 0; i < config["agents"].size(); ++i) {
+    auto start_pos = config["agents"][i]["startState"]["position"].as<std::vector<double>>();
+    auto goal_pos = config["agents"][i]["goalState"]["position"].as<std::vector<double>>();
+    start_points.emplace_back(start_pos[0], start_pos[1]);
+    goal_points.emplace_back(goal_pos[0], goal_pos[1]);
   }
 
+  // Get environment parameters from benchmark
   int num_of_agents = config["agentNum"].as<int>();
-  int width = 40;
-  int height = 40;
+  double width = config["width"] ? config["width"].as<double>() : 40.0;
+  double height = config["height"] ? config["height"].as<double>() : 40.0;
+  double robot_radius = config["robotRadius"] ? config["robotRadius"].as<double>() : 0.5;
+
+  // Validate that we have the correct number of agents
+  if (start_points.size() != static_cast<size_t>(num_of_agents) ||
+      goal_points.size() != static_cast<size_t>(num_of_agents)) {
+    cerr << "Error: Number of agents mismatch. Expected: " << num_of_agents
+         << ", Got start points: " << start_points.size()
+         << ", Got goal points: " << goal_points.size() << endl;
+    return -1;
+  }
+
+  cout << "=== Benchmark Information ===" << endl;
+  cout << "Map: " << mapname << "_" << obs << endl;
+  cout << "Agents: " << num_of_agents << endl;
+  cout << "Environment: " << width << "x" << height << endl;
+  cout << "Robot radius: " << robot_radius << endl;
+  cout << "Obstacles: " << obstacles.size() << endl;
+  cout << "Algorithm: " << algorithm << endl;
+  cout << "============================" << endl;
+
   vector<double> radii;
   vector<double> max_expand_distances;
   vector<double> max_velocities;
@@ -72,7 +97,7 @@ int main(int argc, char* argv[]) {
 
   for (int i = 0; i < num_of_agents; ++i) {
     // radii.emplace_back(dis(gen));
-    radii.emplace_back(0.5);
+    radii.emplace_back(robot_radius);  // Use radius from benchmark
     max_expand_distances.emplace_back(5.0);
     max_velocities.emplace_back(0.5);
     thresholds.emplace_back(0.01);
@@ -80,7 +105,9 @@ int main(int argc, char* argv[]) {
     goal_sample_rates.emplace_back(10.0);
   }
 
-  SharedEnv env = SharedEnv(num_of_agents, width, height, start_points, goal_points, radii, max_expand_distances, max_velocities, iterations, goal_sample_rates, obstacles, algorithm);
+  SharedEnv env = SharedEnv(num_of_agents, static_cast<int>(width), static_cast<int>(height),
+                           start_points, goal_points, radii, max_expand_distances, max_velocities,
+                           iterations, goal_sample_rates, obstacles, algorithm);
   ConstraintTable constraint_table(env);
   Solution soluiton;
   ActionSolution action_solution;
