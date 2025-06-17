@@ -9,6 +9,9 @@ find_package(Boost REQUIRED)
 
 find_package(yaml-cpp REQUIRED)
 
+# Homebrew 경로 추가
+link_directories(/opt/homebrew/lib)
+
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${YAML_CPP_INCLUDE_DIR})
 

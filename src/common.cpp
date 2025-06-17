@@ -2,7 +2,29 @@
 
 namespace fs = std::filesystem;
 
+bool createDirectories(const string &filepath) {
+    try {
+        fs::path file_path(filepath);
+        fs::path dir_path = file_path.parent_path();
+
+        if (!dir_path.empty() && !fs::exists(dir_path)) {
+            fs::create_directories(dir_path);
+            cout << "Created directory: " << dir_path << endl;
+        }
+        return true;
+    } catch (const fs::filesystem_error& e) {
+        cerr << "Failed to create directories for: " << filepath << " - " << e.what() << endl;
+        return false;
+    }
+}
+
 void openFile(ofstream &file, const string &filename) {
+    // 디렉토리가 없으면 생성
+    if (!createDirectories(filename)) {
+        cerr << "Failed to create required directories for: " << filename << endl;
+        return;
+    }
+
     file.open(filename, ios::out);
     if (!file.is_open()) {
         cerr << "Error opening file: " << filename << endl;
