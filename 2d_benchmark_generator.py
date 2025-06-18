@@ -31,7 +31,7 @@ class Benchmark2DGenerator:
         self.obstacle_shapes = []  # shapely 객체들 저장
 
         # 통일된 안전 거리 설정
-        self.safe_margin = robot_radius * 2.0
+        self.safe_margin = robot_radius * 1.0
 
     def generate_random_angle(self):
         """0도에서 360도 사이의 랜덤 각도 생성 (라디안)"""
@@ -122,7 +122,7 @@ class Benchmark2DGenerator:
         x, y = point
 
         # 경계 확인 (더 넉넉한 여백)
-        boundary_margin = self.robot_radius + 1.0
+        boundary_margin = self.robot_radius + self.safe_margin
         if x < boundary_margin or x > self.width - boundary_margin:
             return False
         if y < boundary_margin or y > self.height - boundary_margin:
@@ -160,17 +160,15 @@ class Benchmark2DGenerator:
                 points.append(agent['goalState']['position'])
         return points
 
-    def generate_valid_point(self, existing_points=None, min_distance=None, exclude_points=None):
+    def generate_valid_point(self, existing_points=None, exclude_points=None):
         """유효한 2D 점 생성 (기존 점들과 겹치지 않게)"""
         if existing_points is None:
             existing_points = []
         if exclude_points is None:
             exclude_points = []
-        if min_distance is None:
-            min_distance = self.safe_margin
 
         max_attempts = 5000
-        boundary_margin = self.robot_radius + 1.0
+        boundary_margin = self.robot_radius + self.safe_margin
 
         for attempt in range(max_attempts):
             x = random.uniform(boundary_margin, self.width - boundary_margin)
@@ -182,45 +180,16 @@ class Benchmark2DGenerator:
                 continue
 
             # 기존 점들과의 거리 확인
-            if not self.check_point_collision_with_existing(point, existing_points, min_distance):
+            if not self.check_point_collision_with_existing(point, existing_points, self.robot_radius + self.safe_margin):
                 continue
 
             # 제외할 점들과의 거리 확인 (예: 해당 에이전트의 시작점)
-            if exclude_points and not self.check_point_collision_with_existing(point, exclude_points, self.safe_margin):
+            if exclude_points and not self.check_point_collision_with_existing(point, exclude_points, self.robot_radius + self.safe_margin):
                 continue
 
             return point
 
-        # 실패시 조건을 단계적으로 완화
-        relaxed_distance = min_distance * 0.7
-        for attempt in range(max_attempts // 2):
-            x = random.uniform(boundary_margin, self.width - boundary_margin)
-            y = random.uniform(boundary_margin, self.height - boundary_margin)
-            point = [x, y]
-
-            if not self.is_point_valid_for_robot(point):
-                continue
-            if not self.check_point_collision_with_existing(point, existing_points, relaxed_distance):
-                continue
-            if exclude_points and not self.check_point_collision_with_existing(point, exclude_points, self.safe_margin * 0.7):
-                continue
-
-            return point
-
-        # 최소한의 조건만 유지
-        for attempt in range(max_attempts // 4):
-            x = random.uniform(boundary_margin, self.width - boundary_margin)
-            y = random.uniform(boundary_margin, self.height - boundary_margin)
-            point = [x, y]
-
-            if self.is_point_valid_for_robot(point):
-                return point
-
-        # 최후의 수단
-        return [
-            random.uniform(boundary_margin, self.width - boundary_margin),
-            random.uniform(boundary_margin, self.height - boundary_margin)
-        ]
+        raise RuntimeError(f"Failed to generate valid point after {max_attempts} attempts")
 
     def generate_agent_points(self):
         """에이전트별 시작/목표 상태 생성"""
@@ -233,7 +202,6 @@ class Benchmark2DGenerator:
             # 시작점 생성
             start_point = self.generate_valid_point(
                 existing_points=existing_points,
-                min_distance=self.safe_margin
             )
 
             # 시작 각도 생성
@@ -249,7 +217,6 @@ class Benchmark2DGenerator:
             existing_points_with_start = existing_points + [start_point]
             goal_point = self.generate_valid_point(
                 existing_points=existing_points_with_start,
-                min_distance=self.safe_margin,
                 exclude_points=[start_point]
             )
 
@@ -313,7 +280,7 @@ class Benchmark2DGenerator:
                                (all_points[i][1] - all_points[j][1])**2)
                 min_distance = min(min_distance, dist)
 
-        return min_distance >= self.safe_margin
+        return min_distance >= self.robot_radius + self.safe_margin
 
 def main():
     parser = argparse.ArgumentParser(description='2D Multi-Robot Path Planning 벤치마크 생성기')
